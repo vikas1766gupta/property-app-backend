@@ -1,0 +1,174 @@
+// Prisma schema — PostgreSQL
+// This file is the ONLY place that knows about the concrete DB. Repositories
+// map Prisma results to plain Entity classes (src/modules/*/*.entity.ts) so
+// that Services/Controllers never import PrismaClient types directly.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  BUSINESS
+  BUYER
+  ADMIN
+}
+
+enum ListingType {
+  RENT
+  SALE
+}
+
+enum ListingStatus {
+  DRAFT
+  PENDING_PAYMENT
+  PUBLISHED
+  FLAGGED
+  REMOVED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+enum BusinessVerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String? // null for OAuth-only buyer accounts
+  role         Role
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  business  Business?
+  favorites Favorite[]
+  leads     Lead[]
+
+  @@index([role])
+}
+
+model Business {
+  id                 String                      @id @default(cuid())
+  userId             String                      @unique
+  user               User                        @relation(fields: [userId], references: [id])
+  companyName        String
+  contactPhone       String?
+  verificationStatus BusinessVerificationStatus   @default(PENDING)
+  freeListingsUsed   Int                          @default(0)
+  createdAt          DateTime                     @default(now())
+  updatedAt          DateTime                     @updatedAt
+
+  properties Property[]
+  payments   Payment[]
+
+  @@index([verificationStatus])
+}
+
+model Property {
+  id               String        @id @default(cuid())
+  businessId       String
+  business         Business      @relation(fields: [businessId], references: [id])
+  listingType      ListingType
+  title            String
+  description      String
+  price            Decimal       @db.Decimal(12, 2)
+  currency         String        @default("INR")
+  status           ListingStatus @default(DRAFT)
+  addressLine      String
+  city             String
+  state            String
+  country          String
+  latitude         Float?
+  longitude        Float?
+  bedrooms         Int?
+  bathrooms        Int?
+  areaSqft         Int?
+  furnishingStatus String?
+  amenities        String[]      @default([])
+  isFreeListing    Boolean       @default(true)
+  publishedAt      DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  images  PropertyImage[]
+  payment Payment?
+  leads   Lead[]
+  favoritedBy Favorite[]
+
+  @@index([listingType, status, city])
+  @@index([businessId])
+  @@index([price])
+}
+
+model PropertyImage {
+  id         String   @id @default(cuid())
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  url        String
+  sortOrder  Int      @default(0)
+
+  @@index([propertyId])
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  businessId      String
+  business        Business      @relation(fields: [businessId], references: [id])
+  propertyId      String?       @unique
+  property        Property?     @relation(fields: [propertyId], references: [id])
+  amount          Decimal       @db.Decimal(12, 2)
+  currency        String        @default("INR")
+  status          PaymentStatus @default(PENDING)
+  gateway         String        @default("stripe")
+  gatewayRef      String? // Stripe PaymentIntent / Razorpay order id
+  invoiceUrl      String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([businessId, status])
+}
+
+model Favorite {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, propertyId])
+}
+
+model Lead {
+  id         String   @id @default(cuid())
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id])
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  name       String
+  contact    String
+  message    String
+  createdAt  DateTime @default(now())
+
+  @@index([propertyId])
+}
+
+model PricingConfig {
+  id              String   @id @default(cuid())
+  freeListingLimit Int     @default(5)
+  pricePerListing Decimal  @db.Decimal(12, 2) @default(499)
+  currency        String   @default("INR")
+  updatedAt       DateTime @updatedAt
+}
