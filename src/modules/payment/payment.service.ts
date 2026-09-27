@@ -1,30 +1,36 @@
 import Stripe from "stripe";
 import { IPaymentRepository } from "./payment.entity";
 import { logger } from "@common/logger/logger";
-
-const DEFAULT_PRICE_PER_LISTING = 499; // in smallest currency unit handling is done by Stripe (paise for INR)
-const CURRENCY = "inr";
+import { PricingService } from "@modules/pricing/pricing.service";
 
 export class PaymentService {
   private readonly stripe: Stripe;
 
-  constructor(private readonly paymentRepo: IPaymentRepository, stripeSecretKey: string) {
+  constructor(
+    private readonly paymentRepo: IPaymentRepository,
+    stripeSecretKey: string,
+    private readonly pricingService: PricingService
+  ) {
     this.stripe = new Stripe(stripeSecretKey, { apiVersion: "2024-06-20" });
   }
 
   /** Creates a Stripe PaymentIntent for a single paid listing and records it as PENDING. */
   async createListingPaymentIntent(businessId: string, propertyId: string): Promise<{ clientSecret: string; paymentId: string }> {
+    const pricing = await this.pricingService.getConfig();
+    const currency = pricing.currency.toUpperCase();
+    const fractionDigits = new Intl.NumberFormat("en", { style: "currency", currency }).resolvedOptions().maximumFractionDigits ?? 2;
+    const amountInMinorUnits = Math.round(pricing.pricePerListing * 10 ** fractionDigits);
     const intent = await this.stripe.paymentIntents.create({
-      amount: DEFAULT_PRICE_PER_LISTING * 100,
-      currency: CURRENCY,
+      amount: amountInMinorUnits,
+      currency: currency.toLowerCase(),
       metadata: { businessId, propertyId },
     });
 
     const payment = await this.paymentRepo.create({
       businessId,
       propertyId,
-      amount: DEFAULT_PRICE_PER_LISTING,
-      currency: CURRENCY.toUpperCase(),
+      amount: pricing.pricePerListing,
+      currency,
       gatewayRef: intent.id,
     });
 

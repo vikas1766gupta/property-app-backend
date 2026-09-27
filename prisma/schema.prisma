@@ -55,6 +55,8 @@ model User {
   business  Business?
   favorites Favorite[]
   leads     Lead[]
+  savedSearches SavedSearch[]
+  notifications Notification[]
 
   @@index([role])
 }
@@ -72,6 +74,7 @@ model Business {
 
   properties Property[]
   payments   Payment[]
+  imageUploads PropertyImage[]
 
   @@index([verificationStatus])
 }
@@ -106,6 +109,7 @@ model Property {
   payment Payment?
   leads   Lead[]
   favoritedBy Favorite[]
+  notifications Notification[]
 
   @@index([listingType, status, city])
   @@index([businessId])
@@ -113,13 +117,18 @@ model Property {
 }
 
 model PropertyImage {
-  id         String   @id @default(cuid())
-  propertyId String
-  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  id         String    @id @default(cuid())
+  propertyId String?
+  property   Property? @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  businessId String
+  business   Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  publicId   String?
   url        String
-  sortOrder  Int      @default(0)
+  sortOrder  Int       @default(0)
+  isCover    Boolean   @default(false)
 
   @@index([propertyId])
+  @@index([businessId])
 }
 
 model Payment {
@@ -149,6 +158,35 @@ model Favorite {
   createdAt  DateTime @default(now())
 
   @@unique([userId, propertyId])
+}
+
+model SavedSearch {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name           String
+  filters        Json
+  notifyOnMatch  Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([notifyOnMatch])
+}
+
+model Notification {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  propertyId String?
+  property   Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  type       String
+  title      String
+  message    String
+  readAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId, createdAt])
 }
 
 model Lead {

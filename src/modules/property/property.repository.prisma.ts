@@ -1,7 +1,8 @@
 import { Prisma, PrismaClient, Property as PrismaProperty, PropertyImage } from "@prisma/client";
 import { IPropertyRepository } from "./property.repository.interface";
-import { PropertyEntity, CreatePropertyInput, PropertySearchFilters, ListingStatus, UpdatePropertyInput } from "./property.entity";
-import { NotFoundError } from "@common/errors/AppError";
+import { PropertyEntity, CreatePropertyInput, PropertyImageReference, PropertySearchFilters, ListingStatus, UpdatePropertyInput } from "./property.entity";
+import { ForbiddenError, NotFoundError } from "@common/errors/AppError";
+import { matchesPropertySearch } from "./property-search.match";
 
 type PrismaPropertyWithImages = PrismaProperty & { images: PropertyImage[] };
 
@@ -15,6 +16,7 @@ export class PropertyRepositoryPrisma implements IPropertyRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
   private toEntity(row: PrismaPropertyWithImages): PropertyEntity {
+    const images = row.images.sort((a, b) => a.sortOrder - b.sortOrder);
     return new PropertyEntity(
       row.id,
       row.businessId,
@@ -33,41 +35,47 @@ export class PropertyRepositoryPrisma implements IPropertyRepository {
       row.areaSqft,
       row.furnishingStatus,
       row.amenities,
-      row.images.sort((a, b) => a.sortOrder - b.sortOrder).map((i) => i.url),
+      images.map((image) => image.url),
       row.isFreeListing,
       row.createdAt,
       row.latitude,
-      row.longitude
+      row.longitude,
+      images.map((image) => ({ id: image.id, url: image.url, sortOrder: image.sortOrder, isCover: image.isCover }))
     );
   }
 
   async create(input: CreatePropertyInput): Promise<PropertyEntity> {
-    const row = await this.prisma.property.create({
-      data: {
-        businessId: input.businessId,
-        listingType: input.listingType,
-        title: input.title,
-        description: input.description,
-        price: input.price,
-        currency: input.currency ?? "INR",
-        addressLine: input.addressLine,
-        city: input.city,
-        state: input.state,
-        country: input.country,
-        latitude: input.latitude,
-        longitude: input.longitude,
-        bedrooms: input.bedrooms,
-        bathrooms: input.bathrooms,
-        areaSqft: input.areaSqft,
-        furnishingStatus: input.furnishingStatus,
-        amenities: input.amenities ?? [],
-        images: input.imageUrls
-          ? { create: input.imageUrls.map((url, i) => ({ url, sortOrder: i })) }
-          : undefined,
-      },
-      include: { images: true },
+    const { imageRefs, ...propertyData } = input;
+    const row = await this.prisma.$transaction(async (transaction) => {
+      const property = await transaction.property.create({
+        data: { ...propertyData, currency: input.currency ?? "INR", amenities: input.amenities ?? [] },
+      });
+      if (imageRefs?.length) await this.attachImages(transaction, property.id, input.businessId, imageRefs);
+      return transaction.property.findUniqueOrThrow({ where: { id: property.id }, include: { images: true } });
     });
     return this.toEntity(row);
+  }
+
+  async createImageUpload(input: { businessId: string; publicId: string; url: string }): Promise<PropertyImageReference> {
+    const image = await this.prisma.propertyImage.create({
+      data: { ...input, propertyId: null, isCover: false, sortOrder: 0 },
+    });
+    return { id: image.id, url: image.url, sortOrder: image.sortOrder, isCover: image.isCover };
+  }
+
+  private async attachImages(
+    transaction: Prisma.TransactionClient,
+    propertyId: string,
+    businessId: string,
+    imageRefs: NonNullable<CreatePropertyInput["imageRefs"]>
+  ): Promise<void> {
+    for (const [sortOrder, image] of imageRefs.entries()) {
+      const attached = await transaction.propertyImage.updateMany({
+        where: { id: image.id, businessId, OR: [{ propertyId: null }, { propertyId }] },
+        data: { propertyId, sortOrder, isCover: image.isCover },
+      });
+      if (attached.count !== 1) throw new ForbiddenError("An image reference does not belong to this business or listing");
+    }
   }
 
   async findById(id: string): Promise<PropertyEntity | null> {
@@ -79,21 +87,48 @@ export class PropertyRepositoryPrisma implements IPropertyRepository {
     const page = filters.page ?? 1;
     const pageSize = Math.min(filters.pageSize ?? 20, 50);
 
-    const where = {
+    const where: Prisma.PropertyWhereInput = {
       status: "PUBLISHED" as const,
       ...(filters.city ? { city: { equals: filters.city, mode: "insensitive" as const } } : {}),
       ...(filters.listingType ? { listingType: filters.listingType } : {}),
-      ...(filters.minBedrooms ? { bedrooms: { gte: filters.minBedrooms } } : {}),
+      ...(filters.minBedrooms !== undefined ? { bedrooms: { gte: filters.minBedrooms } } : {}),
       ...(filters.amenities?.length ? { amenities: { hasEvery: filters.amenities } } : {}),
-      ...(filters.minPrice || filters.maxPrice
+      ...(filters.minPrice !== undefined || filters.maxPrice !== undefined
         ? {
             price: {
-              ...(filters.minPrice ? { gte: filters.minPrice } : {}),
-              ...(filters.maxPrice ? { lte: filters.maxPrice } : {}),
+              ...(filters.minPrice !== undefined ? { gte: filters.minPrice } : {}),
+              ...(filters.maxPrice !== undefined ? { lte: filters.maxPrice } : {}),
             },
           }
         : {}),
     };
+
+    if (filters.radiusKm !== undefined && filters.latitude !== undefined && filters.longitude !== undefined) {
+      const latitudeDelta = filters.radiusKm / 110.574;
+      const longitudeDelta = Math.min(180, filters.radiusKm / (111.32 * Math.max(Math.abs(Math.cos(filters.latitude * Math.PI / 180)), 0.01)));
+      const minLongitude = filters.longitude - longitudeDelta;
+      const maxLongitude = filters.longitude + longitudeDelta;
+      where.latitude = { gte: Math.max(-90, filters.latitude - latitudeDelta), lte: Math.min(90, filters.latitude + latitudeDelta) };
+
+      if (minLongitude < -180) {
+        where.OR = [{ longitude: { gte: minLongitude + 360 } }, { longitude: { lte: maxLongitude } }];
+      } else if (maxLongitude > 180) {
+        where.OR = [{ longitude: { gte: minLongitude } }, { longitude: { lte: maxLongitude - 360 } }];
+      } else {
+        where.longitude = { gte: minLongitude, lte: maxLongitude };
+      }
+    }
+
+    if (filters.radiusKm !== undefined) {
+      const candidates = await this.prisma.property.findMany({
+        where,
+        include: { images: true },
+        orderBy: { publishedAt: "desc" },
+      });
+      const matching = candidates.map((row) => this.toEntity(row)).filter((property) => matchesPropertySearch(property, filters));
+      const offset = (page - 1) * pageSize;
+      return { items: matching.slice(offset, offset + pageSize), total: matching.length };
+    }
 
     const [rows, total] = await this.prisma.$transaction([
       this.prisma.property.findMany({
@@ -109,18 +144,19 @@ export class PropertyRepositoryPrisma implements IPropertyRepository {
     return { items: rows.map((r) => this.toEntity(r)), total };
   }
 
-  async update(id: string, patch: UpdatePropertyInput): Promise<PropertyEntity> {
-    const { imageUrls, ...propertyData } = patch;
+  async update(id: string, businessId: string, patch: UpdatePropertyInput): Promise<PropertyEntity> {
+    const { imageRefs, ...propertyData } = patch;
     try {
       const row = await this.prisma.$transaction(async (transaction) => {
         await transaction.property.update({ where: { id }, data: propertyData });
 
-        if (imageUrls !== undefined) {
-          await transaction.propertyImage.deleteMany({ where: { propertyId: id } });
-          if (imageUrls.length > 0) {
-            await transaction.propertyImage.createMany({
-              data: imageUrls.map((url, sortOrder) => ({ propertyId: id, url, sortOrder })),
-            });
+        if (imageRefs !== undefined) {
+          await transaction.propertyImage.updateMany({
+            where: { propertyId: id },
+            data: { propertyId: null, sortOrder: 0, isCover: false },
+          });
+          if (imageRefs.length > 0) {
+            await this.attachImages(transaction, id, businessId, imageRefs);
           }
         }
 

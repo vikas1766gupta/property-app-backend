@@ -1,4 +1,4 @@
-import { PropertyEntity, CreatePropertyInput, PropertySearchFilters, ListingStatus, UpdatePropertyInput } from "./property.entity";
+import { PropertyEntity, CreatePropertyInput, PropertyImageReference, PropertySearchFilters, ListingStatus, UpdatePropertyInput } from "./property.entity";
 
 /**
  * Repository interface (port). Services depend on THIS, never on a concrete
@@ -8,9 +8,10 @@ import { PropertyEntity, CreatePropertyInput, PropertySearchFilters, ListingStat
  */
 export interface IPropertyRepository {
   create(input: CreatePropertyInput): Promise<PropertyEntity>;
+  createImageUpload(input: { businessId: string; publicId: string; url: string }): Promise<PropertyImageReference>;
   findById(id: string): Promise<PropertyEntity | null>;
   search(filters: PropertySearchFilters): Promise<{ items: PropertyEntity[]; total: number }>;
-  update(id: string, patch: UpdatePropertyInput): Promise<PropertyEntity>;
+  update(id: string, businessId: string, patch: UpdatePropertyInput): Promise<PropertyEntity>;
   updateStatus(id: string, status: ListingStatus): Promise<PropertyEntity>;
   delete(id: string): Promise<void>;
   countByBusiness(businessId: string): Promise<number>;
