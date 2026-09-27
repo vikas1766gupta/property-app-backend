@@ -1,5 +1,6 @@
 export type ListingType = "RENT" | "SALE";
 export type ListingStatus = "DRAFT" | "PENDING_PAYMENT" | "PUBLISHED" | "FLAGGED" | "REMOVED";
+export type VerificationStatus = "PENDING" | "UNDER_REVIEW" | "VERIFIED" | "REJECTED" | "SUSPENDED" | "EXPIRED";
 
 export interface PropertyImageReference {
   id: string;
@@ -11,6 +12,14 @@ export interface PropertyImageReference {
 export interface PropertyImageInput {
   id: string;
   isCover: boolean;
+}
+
+export interface PropertySellerSummary {
+  id: string;
+  accountType: "OWNER" | "BROKER" | "BUILDER";
+  displayName: string | null;
+  companyName: string;
+  verificationStatus: VerificationStatus;
 }
 
 /**
@@ -42,8 +51,25 @@ export class PropertyEntity {
     public createdAt: Date,
     public latitude?: number | null,
     public longitude?: number | null,
-    public imageRefs: PropertyImageReference[] = []
+    public imageRefs: PropertyImageReference[] = [],
+    public seller?: PropertySellerSummary,
+    public verificationStatus: VerificationStatus = "PENDING",
+    public duplicateFlag = false,
+    public duplicateReason: string | null = null,
+    public promoted = false
   ) {}
+}
+
+export interface DuplicatePropertyInput {
+  id?: string;
+  businessId: string;
+  listingType: ListingType;
+  city: string;
+  addressLine: string;
+  price: number;
+  areaSqft: number | null;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 export interface CreatePropertyInput {

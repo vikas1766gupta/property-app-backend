@@ -10,6 +10,7 @@ export function requestLoggerMiddleware(req: Request, res: Response, next: NextF
     logger.info("request", {
       method: req.method,
       route: req.originalUrl,
+      requestId: res.locals.requestId,
       status: res.statusCode,
       durationMs: Math.round(durationMs * 100) / 100,
     });

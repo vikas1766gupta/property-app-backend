@@ -15,10 +15,10 @@ export function errorHandlerMiddleware(
     } else {
       logger.warn(err.message, { route: req.originalUrl, statusCode: err.statusCode });
     }
-    res.status(err.statusCode).json({ error: err.message, details: err.details });
+    res.status(err.statusCode).json({ error: err.message, details: err.details, requestId: res.locals.requestId });
     return;
   }
 
   logger.error("Unhandled error", { err, route: req.originalUrl });
-  res.status(500).json({ error: "Internal server error" });
+  res.status(500).json({ error: "Internal server error", requestId: res.locals.requestId });
 }

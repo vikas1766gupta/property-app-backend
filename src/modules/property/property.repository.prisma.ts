@@ -1,10 +1,22 @@
 import { Prisma, PrismaClient, Property as PrismaProperty, PropertyImage } from "@prisma/client";
 import { IPropertyRepository } from "./property.repository.interface";
-import { PropertyEntity, CreatePropertyInput, PropertyImageReference, PropertySearchFilters, ListingStatus, UpdatePropertyInput } from "./property.entity";
+import { PropertyEntity, CreatePropertyInput, PropertyImageReference, PropertySearchFilters, ListingStatus, UpdatePropertyInput, DuplicatePropertyInput } from "./property.entity";
 import { ForbiddenError, NotFoundError } from "@common/errors/AppError";
 import { matchesPropertySearch } from "./property-search.match";
+import { isLikelyDuplicate } from "./duplicate-detector";
+import { PromotionRepository } from "@modules/promotion/promotion.entity";
+import { prioritizeByPromotionWeight } from "@modules/promotion/promotion-order";
 
-type PrismaPropertyWithImages = PrismaProperty & { images: PropertyImage[] };
+type PrismaPropertyWithImages = PrismaProperty & {
+  images: PropertyImage[];
+  business?: {
+    id: string;
+    accountType: "OWNER" | "BROKER" | "BUILDER";
+    displayName: string | null;
+    companyName: string;
+    verificationStatus: "PENDING" | "UNDER_REVIEW" | "VERIFIED" | "REJECTED" | "SUSPENDED" | "EXPIRED";
+  };
+};
 
 /**
  * Postgres/Prisma implementation of IPropertyRepository.
@@ -13,7 +25,12 @@ type PrismaPropertyWithImages = PrismaProperty & { images: PropertyImage[] };
  * layer talks only to the interface + PropertyEntity.
  */
 export class PropertyRepositoryPrisma implements IPropertyRepository {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly prisma: PrismaClient, private readonly promotionRepo?: PromotionRepository) {}
+
+  private async prioritize(properties: PropertyEntity[]): Promise<PropertyEntity[]> {
+    const weights = await this.promotionRepo?.activeWeights("PROPERTY", properties.map((property) => property.id), new Date()) ?? new Map<string, number>();
+    return prioritizeByPromotionWeight(properties, weights).map((property) => { property.promoted = weights.has(property.id); return property; });
+  }
 
   private toEntity(row: PrismaPropertyWithImages): PropertyEntity {
     const images = row.images.sort((a, b) => a.sortOrder - b.sortOrder);
@@ -40,7 +57,19 @@ export class PropertyRepositoryPrisma implements IPropertyRepository {
       row.createdAt,
       row.latitude,
       row.longitude,
-      images.map((image) => ({ id: image.id, url: image.url, sortOrder: image.sortOrder, isCover: image.isCover }))
+      images.map((image) => ({ id: image.id, url: image.url, sortOrder: image.sortOrder, isCover: image.isCover })),
+      row.business
+        ? {
+            id: row.business.id,
+            accountType: row.business.accountType,
+            displayName: row.business.displayName,
+            companyName: row.business.companyName,
+            verificationStatus: row.business.verificationStatus,
+          }
+        : undefined,
+      row.verificationStatus,
+      row.duplicateFlag,
+      row.duplicateReason
     );
   }
 
@@ -79,7 +108,13 @@ export class PropertyRepositoryPrisma implements IPropertyRepository {
   }
 
   async findById(id: string): Promise<PropertyEntity | null> {
-    const row = await this.prisma.property.findUnique({ where: { id }, include: { images: true } });
+    const row = await this.prisma.property.findUnique({
+      where: { id },
+      include: {
+        images: true,
+        business: { select: { id: true, accountType: true, displayName: true, companyName: true, verificationStatus: true } },
+      },
+    });
     return row ? this.toEntity(row) : null;
   }
 
@@ -89,6 +124,7 @@ export class PropertyRepositoryPrisma implements IPropertyRepository {
 
     const where: Prisma.PropertyWhereInput = {
       status: "PUBLISHED" as const,
+      verificationStatus: { not: "SUSPENDED" },
       ...(filters.city ? { city: { equals: filters.city, mode: "insensitive" as const } } : {}),
       ...(filters.listingType ? { listingType: filters.listingType } : {}),
       ...(filters.minBedrooms !== undefined ? { bedrooms: { gte: filters.minBedrooms } } : {}),
@@ -125,7 +161,7 @@ export class PropertyRepositoryPrisma implements IPropertyRepository {
         include: { images: true },
         orderBy: { publishedAt: "desc" },
       });
-      const matching = candidates.map((row) => this.toEntity(row)).filter((property) => matchesPropertySearch(property, filters));
+      const matching = await this.prioritize(candidates.map((row) => this.toEntity(row)).filter((property) => matchesPropertySearch(property, filters)));
       const offset = (page - 1) * pageSize;
       return { items: matching.slice(offset, offset + pageSize), total: matching.length };
     }
@@ -134,14 +170,14 @@ export class PropertyRepositoryPrisma implements IPropertyRepository {
       this.prisma.property.findMany({
         where,
         include: { images: true },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
+        take: 500,
         orderBy: { publishedAt: "desc" },
       }),
       this.prisma.property.count({ where }),
     ]);
 
-    return { items: rows.map((r) => this.toEntity(r)), total };
+    const prioritized = await this.prioritize(rows.map((r) => this.toEntity(r)));
+    return { items: prioritized.slice((page - 1) * pageSize, page * pageSize), total };
   }
 
   async update(id: string, businessId: string, patch: UpdatePropertyInput): Promise<PropertyEntity> {
@@ -195,5 +231,19 @@ export class PropertyRepositoryPrisma implements IPropertyRepository {
       orderBy: { createdAt: "desc" },
     });
     return rows.map((r) => this.toEntity(r));
+  }
+
+  async findPotentialDuplicates(input: DuplicatePropertyInput): Promise<PropertyEntity[]> {
+    const rows = await this.prisma.property.findMany({
+      where: { businessId: input.businessId, listingType: input.listingType, city: { equals: input.city, mode: "insensitive" }, status: "PUBLISHED", ...(input.id ? { id: { not: input.id } } : {}) },
+      include: { images: true, business: { select: { id: true, accountType: true, displayName: true, companyName: true, verificationStatus: true } } },
+      take: 50,
+    });
+    return rows.filter((row) => isLikelyDuplicate(input, { id: row.id, price: Number(row.price), areaSqft: row.areaSqft, addressLine: row.addressLine, latitude: row.latitude, longitude: row.longitude })).map((row) => this.toEntity(row));
+  }
+
+  async markDuplicate(id: string, reason: string): Promise<PropertyEntity> {
+    const row = await this.prisma.property.update({ where: { id }, data: { duplicateFlag: true, duplicateReason: reason }, include: { images: true, business: { select: { id: true, accountType: true, displayName: true, companyName: true, verificationStatus: true } } } });
+    return this.toEntity(row);
   }
 }

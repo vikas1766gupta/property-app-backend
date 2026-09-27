@@ -2,11 +2,13 @@ import { PricingService } from "@modules/pricing/pricing.service";
 import { PricingConfig } from "@modules/pricing/pricing.entity";
 import { IAdminRepository } from "./admin.repository.interface";
 import { AdminBusinessStatus, AdminListingStatus } from "./admin.entity";
+import { INotificationDeliveryRepository } from "@modules/notification/notification.entity";
 
 export class AdminService {
   constructor(
     private readonly adminRepo: IAdminRepository,
-    private readonly pricingService: PricingService
+    private readonly pricingService: PricingService,
+    private readonly notificationDeliveryRepo?: INotificationDeliveryRepository,
   ) {}
 
   listBusinesses() {
@@ -32,6 +34,18 @@ export class AdminService {
   revenueReport() {
     return this.adminRepo.revenueReport();
   }
+
+  subscriptionReport() {
+    return this.adminRepo.subscriptionReport();
+  }
+
+  notificationDeliveryFailures() {
+    return this.notificationDeliveryRepo?.listFailures() ?? Promise.resolve([]);
+  }
+
+  listProjects() { return this.adminRepo.listProjects ? this.adminRepo.listProjects() : Promise.resolve([]); }
+
+  updateProject(id: string, input: { status?: "DRAFT" | "PUBLISHED" | "SOLD_OUT" | "SUSPENDED" | "COMPLETED"; verificationStatus?: "PENDING" | "VERIFIED" | "REJECTED" }) { if (!this.adminRepo.updateProject) throw new Error("Project moderation unavailable"); return this.adminRepo.updateProject(id, input); }
 
   getPricing(): Promise<PricingConfig> {
     return this.pricingService.getConfig();

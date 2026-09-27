@@ -1,6 +1,18 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { UnauthorizedError, ForbiddenError } from "@common/errors/AppError";
+import { env } from "@config/env";
+import { z } from "zod";
+
+const authPayloadSchema = z.object({
+  userId: z.string().min(1),
+  role: z.enum(["BUSINESS", "BUYER", "ADMIN"]),
+  businessId: z.string().min(1).optional(),
+});
+
+function jwtSecret(): string {
+  return process.env.JWT_SECRET || env.jwtSecret;
+}
 
 export interface AuthPayload {
   userId: string;
@@ -25,7 +37,7 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction): v
   }
   try {
     const token = header.slice("Bearer ".length);
-    req.auth = jwt.verify(token, process.env.JWT_SECRET as string) as AuthPayload;
+    req.auth = authPayloadSchema.parse(jwt.verify(token, jwtSecret(), { algorithms: ["HS256"] }));
     next();
   } catch {
     throw new UnauthorizedError("Invalid or expired token");
@@ -47,7 +59,7 @@ export function optionalAuth(req: Request, _res: Response, next: NextFunction): 
   const header = req.headers.authorization;
   if (header?.startsWith("Bearer ")) {
     try {
-      req.auth = jwt.verify(header.slice(7), process.env.JWT_SECRET as string) as AuthPayload;
+      req.auth = authPayloadSchema.parse(jwt.verify(header.slice(7), jwtSecret(), { algorithms: ["HS256"] }));
     } catch {
       // ignore invalid token on optional routes
     }

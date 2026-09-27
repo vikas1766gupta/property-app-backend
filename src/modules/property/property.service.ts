@@ -7,6 +7,8 @@ import { PricingService } from "@modules/pricing/pricing.service";
 import { IPropertyImageStorage } from "./image-storage.interface";
 import { PropertyImageInput } from "./property.entity";
 import { SavedSearchService } from "./saved-search.service";
+import { EntitlementService } from "@modules/subscription/entitlement.service";
+import { AnalyticsService } from "@modules/analytics/analytics.service";
 
 /**
  * Business logic only — no HTTP concerns, no DB-specific query syntax.
@@ -18,7 +20,9 @@ export class PropertyService {
     private readonly paymentService: PaymentService,
     private readonly pricingService: PricingService,
     private readonly imageStorage: IPropertyImageStorage,
-    private readonly savedSearchService?: SavedSearchService
+    private readonly savedSearchService?: SavedSearchService,
+    private readonly entitlementService?: EntitlementService,
+    private readonly analyticsService?: AnalyticsService
   ) {}
 
   async uploadImage(businessId: string, buffer: Buffer): Promise<{ id: string; url: string }> {
@@ -31,11 +35,13 @@ export class PropertyService {
    * created as PENDING_PAYMENT and the caller must complete payment before it publishes. */
   async createListing(input: CreatePropertyInput): Promise<{ property: PropertyEntity; requiresPayment: boolean }> {
     this.validateImageReferences(input.imageRefs);
-    const usedCount = await this.propertyRepo.countByBusiness(input.businessId);
-    const { freeListingLimit } = await this.pricingService.getConfig();
-    const requiresPayment = usedCount >= freeListingLimit;
+    const requiresPayment = this.entitlementService
+      ? (await this.entitlementService.canCreateListing(input.businessId)).requiresPayment
+      : (await this.propertyRepo.countByBusiness(input.businessId)) >= (await this.pricingService.getConfig()).freeListingLimit;
 
     const property = await this.propertyRepo.create(input);
+    await this.analyticsService?.record({ event: "PROPERTY_CREATED", businessId: property.businessId, propertyId: property.id, city: property.city, propertyType: property.listingType });
+    await this.flagPotentialDuplicates(property);
 
     if (requiresPayment) {
       await this.propertyRepo.updateStatus(property.id, "PENDING_PAYMENT");
@@ -66,7 +72,7 @@ export class PropertyService {
 
   async getPublicListing(id: string): Promise<PropertyEntity> {
     const property = await this.propertyRepo.findById(id);
-    if (!property || property.status !== "PUBLISHED") throw new NotFoundError("Listing not found");
+    if (!property || property.status !== "PUBLISHED" || property.verificationStatus === "SUSPENDED") throw new NotFoundError("Listing not found");
     return property;
   }
 
@@ -83,7 +89,15 @@ export class PropertyService {
     if (!existing) throw new NotFoundError("Listing not found");
     if (existing.businessId !== businessId) throw new ForbiddenError("Not your listing");
     this.validateImageReferences(patch.imageRefs);
-    return this.propertyRepo.update(id, businessId, patch);
+    const updated = await this.propertyRepo.update(id, businessId, patch);
+    await this.flagPotentialDuplicates(updated);
+    return updated;
+  }
+
+  private async flagPotentialDuplicates(property: PropertyEntity): Promise<void> {
+    if (!this.propertyRepo.findPotentialDuplicates || !this.propertyRepo.markDuplicate) return;
+    const matches = await this.propertyRepo.findPotentialDuplicates({ id: property.id, businessId: property.businessId, listingType: property.listingType, city: property.city, addressLine: property.addressLine, price: property.price, areaSqft: property.areaSqft, latitude: property.latitude ?? null, longitude: property.longitude ?? null });
+    if (matches.length) await this.propertyRepo.markDuplicate(property.id, `Likely duplicate of ${matches[0].id}`);
   }
 
   private validateImageReferences(imageRefs?: PropertyImageInput[]): void {
@@ -104,6 +118,10 @@ export class PropertyService {
   }
 
   async remainingFreeListings(businessId: string): Promise<number> {
+    if (this.entitlementService) {
+      const entitlements = await this.entitlementService.getEntitlements(businessId);
+      return Math.max(0, entitlements.maxActiveListings - entitlements.listingUsage);
+    }
     const used = await this.propertyRepo.countByBusiness(businessId);
     const { freeListingLimit } = await this.pricingService.getConfig();
     return Math.max(0, freeListingLimit - used);

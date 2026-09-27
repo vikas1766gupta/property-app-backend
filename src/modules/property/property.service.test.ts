@@ -39,6 +39,25 @@ describe("PropertyService pricing", () => {
     expect(result.requiresPayment).toBe(false);
     expect(repository.updateStatus).toHaveBeenCalledWith("property-1", "PUBLISHED");
   });
+
+  it("uses entitlement service decisions for listing creation", async () => {
+    const property = { id: "property-1" };
+    const repository = {
+      countByBusiness: vi.fn(),
+      create: vi.fn().mockResolvedValue(property),
+      updateStatus: vi.fn().mockResolvedValue(property),
+    } as unknown as IPropertyRepository;
+    const entitlementService = {
+      canCreateListing: vi.fn().mockResolvedValue({ allowed: true, requiresPayment: false }),
+    };
+    const service = new PropertyService(repository, {} as PaymentService, pricingService, { upload: vi.fn() }, undefined, entitlementService as never);
+
+    const result = await service.createListing({ businessId: "business-1" } as never);
+
+    expect(entitlementService.canCreateListing).toHaveBeenCalledWith("business-1");
+    expect(repository.countByBusiness).not.toHaveBeenCalled();
+    expect(result.requiresPayment).toBe(false);
+  });
 });
 
 describe("PropertyService ownership", () => {

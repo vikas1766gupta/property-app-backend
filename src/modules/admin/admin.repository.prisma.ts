@@ -1,9 +1,12 @@
 import { PrismaClient } from "@prisma/client";
 import { IAdminRepository } from "./admin.repository.interface";
 import { AdminBusinessRecord, AdminBusinessStatus, AdminBusinessUpdateRecord, AdminListingRecord, AdminListingStatus, AdminListingUpdateRecord } from "./admin.entity";
+import { ProjectEntity } from "@modules/project/project.entity";
+import { ProjectRepositoryPrisma } from "@modules/project/project.repository.prisma";
 
 export class AdminRepositoryPrisma implements IAdminRepository {
-  constructor(private readonly prisma: PrismaClient) {}
+  private readonly projectRepo: ProjectRepositoryPrisma;
+  constructor(private readonly prisma: PrismaClient) { this.projectRepo = new ProjectRepositoryPrisma(prisma); }
 
   async listBusinesses(): Promise<AdminBusinessRecord[]> {
     return this.prisma.business.findMany({ include: { user: true } });
@@ -35,4 +38,12 @@ export class AdminRepositoryPrisma implements IAdminRepository {
     });
     return totals;
   }
+
+  async subscriptionReport() {
+    return this.prisma.subscription.groupBy({ by: ["status"], _count: true });
+  }
+
+  listProjects(): Promise<ProjectEntity[]> { return this.projectRepo.listAllForAdmin(); }
+
+  updateProject(id: string, input: { status?: ProjectEntity["status"]; verificationStatus?: ProjectEntity["verificationStatus"] }): Promise<ProjectEntity> { return this.projectRepo.updateModeration(id, input); }
 }

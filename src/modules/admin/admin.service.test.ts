@@ -20,6 +20,7 @@ describe("AdminService", () => {
       listAllListings: vi.fn(),
       updateListingStatus: vi.fn().mockResolvedValue(listing),
       revenueReport: vi.fn().mockResolvedValue(revenue),
+      subscriptionReport: vi.fn().mockResolvedValue([]),
     };
     pricingService = {
       getConfig: vi.fn(),

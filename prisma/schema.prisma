@@ -38,10 +38,167 @@ enum PaymentStatus {
   REFUNDED
 }
 
-enum BusinessVerificationStatus {
+enum VerificationStatus {
   PENDING
+  UNDER_REVIEW
   VERIFIED
   REJECTED
+  SUSPENDED
+  EXPIRED
+}
+
+enum BusinessAccountType {
+  OWNER
+  BROKER
+  BUILDER
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  TRIALING
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+  INCOMPLETE
+}
+
+enum ProjectStatus {
+  DRAFT
+  PUBLISHED
+  SOLD_OUT
+  SUSPENDED
+  COMPLETED
+}
+
+enum ReraStatus {
+  PENDING
+  UNDER_REVIEW
+  VERIFIED
+  NOT_APPLICABLE
+  REJECTED
+  SUSPENDED
+  EXPIRED
+}
+
+enum VerificationType {
+  BUSINESS
+  PROPERTY
+  PROJECT
+  RERA
+}
+
+enum VerificationEntityType {
+  BUSINESS
+  PROPERTY
+  PROJECT
+}
+
+enum ReportReason {
+  FAKE_PROPERTY
+  WRONG_PRICE
+  DUPLICATE
+  SPAM
+  SCAM
+  WRONG_INFORMATION
+  OTHER
+}
+
+enum ReportStatus {
+  OPEN
+  UNDER_REVIEW
+  DISMISSED
+  SUSPENDED
+  REJECTED
+  RESOLVED
+}
+
+enum ProjectMediaType {
+  GALLERY
+  FLOOR_PLAN
+  BROCHURE
+  SITE_PLAN
+}
+
+enum BillingInterval {
+  MONTHLY
+  YEARLY
+}
+
+enum WebhookProcessingStatus {
+  PROCESSING
+  PROCESSED
+  FAILED
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  INTERESTED
+  SITE_VISIT
+  NEGOTIATION
+  CLOSED
+  NOT_INTERESTED
+  INVALID
+}
+
+enum PromotionType {
+  FEATURED
+  PREMIUM
+  HOMEPAGE
+  SEARCH_PRIORITY
+}
+
+enum PromotionStatus {
+  PENDING_PAYMENT
+  SCHEDULED
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+enum PromotionTargetType {
+  PROPERTY
+  PROJECT
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+enum AdPlacement {
+  HOME_BANNER
+  SEARCH_BANNER
+  CITY_PAGE
+  PROJECT_PAGE
+  SIDEBAR
+}
+
+enum AnalyticsEventType {
+  PROPERTY_VIEW
+  SEARCH
+  FAVORITE
+  CONTACT_CLICK
+  CALL_CLICK
+  WHATSAPP_CLICK
+  LEAD_CREATED
+  SITE_VISIT_REQUESTED
+  PROPERTY_CREATED
+  PROPERTY_FEATURED
+  SUBSCRIPTION_PURCHASED
+  PAYMENT_COMPLETED
+  PROJECT_VIEW
+}
+
+enum NotificationDeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+  RETRYING
 }
 
 model User {
@@ -51,12 +208,22 @@ model User {
   role         Role
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  emailEnabled Boolean  @default(true)
+  leadEmails Boolean @default(true)
+  propertyAlertEmails Boolean @default(true)
+  paymentEmails Boolean @default(true)
+  marketingEmails Boolean @default(false)
 
   business  Business?
   favorites Favorite[]
   leads     Lead[]
   savedSearches SavedSearch[]
   notifications Notification[]
+  notificationDeliveries NotificationDelivery[]
+  analyticsEvents AnalyticsEvent[]
+  reports       Report[]
+  reviewedReports Report[] @relation("ReportReviewer")
+  reviewedVerifications VerificationRecord[] @relation("VerificationReviewer")
 
   @@index([role])
 }
@@ -65,18 +232,88 @@ model Business {
   id                 String                      @id @default(cuid())
   userId             String                      @unique
   user               User                        @relation(fields: [userId], references: [id])
+  accountType        BusinessAccountType        @default(OWNER)
+  displayName        String?
   companyName        String
   contactPhone       String?
-  verificationStatus BusinessVerificationStatus   @default(PENDING)
+  profileImage       String?
+  bio                String?
+  yearsOfExperience  Int?
+  website            String?
+  city               String?
+  servedLocalities   String[]                    @default([])
+  verificationStatus VerificationStatus   @default(PENDING)
   freeListingsUsed   Int                          @default(0)
   createdAt          DateTime                     @default(now())
   updatedAt          DateTime                     @updatedAt
 
   properties Property[]
+  projects   Project[]
   payments   Payment[]
+  subscriptions Subscription[]
   imageUploads PropertyImage[]
+  promotions Promotion[]
+  analyticsEvents AnalyticsEvent[]
+  campaigns Campaign[]
 
   @@index([verificationStatus])
+}
+
+model Plan {
+  id                    String              @id @default(cuid())
+  name                  String              @unique
+  accountType           BusinessAccountType?
+  price                 Decimal             @db.Decimal(12, 2)
+  currency              String              @default("INR")
+  billingInterval       BillingInterval    @default(MONTHLY)
+  maxActiveListings     Int
+  featuredCredits       Int                 @default(0)
+  maxTeamMembers        Int                 @default(1)
+  leadManagement        Boolean             @default(false)
+  analytics             Boolean             @default(false)
+  priorityVisibility    Boolean             @default(false)
+  profileVisibility     Boolean             @default(true)
+  projectListingAccess  Boolean             @default(false)
+  isActive               Boolean             @default(true)
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  subscriptions Subscription[]
+
+  @@index([accountType, isActive])
+}
+
+model Subscription {
+  id                     String             @id @default(cuid())
+  businessId             String
+  business               Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  planId                 String
+  plan                   Plan               @relation(fields: [planId], references: [id])
+  status                 SubscriptionStatus @default(INCOMPLETE)
+  currentPeriodStart     DateTime
+  currentPeriodEnd       DateTime
+  cancelAtPeriodEnd      Boolean            @default(false)
+  provider               String             @default("stripe")
+  providerSubscriptionId String?            @unique
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
+
+  events   SubscriptionEvent[]
+  payments Payment[]
+
+  @@index([businessId, status])
+  @@index([planId, status])
+}
+
+model SubscriptionEvent {
+  id             String       @id @default(cuid())
+  subscriptionId String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  type           String
+  metadata       Json?
+  createdAt      DateTime     @default(now())
+
+  @@index([subscriptionId, createdAt])
 }
 
 model Property {
@@ -89,6 +326,9 @@ model Property {
   price            Decimal       @db.Decimal(12, 2)
   currency         String        @default("INR")
   status           ListingStatus @default(DRAFT)
+  verificationStatus VerificationStatus @default(PENDING)
+  duplicateFlag    Boolean       @default(false)
+  duplicateReason  String?
   addressLine      String
   city             String
   state            String
@@ -110,25 +350,108 @@ model Property {
   leads   Lead[]
   favoritedBy Favorite[]
   notifications Notification[]
+  promotions Promotion[]
+  analyticsEvents AnalyticsEvent[]
 
   @@index([listingType, status, city])
   @@index([businessId])
   @@index([price])
 }
 
+model Project {
+  id                 String           @id @default(cuid())
+  builderId          String
+  builder            Business         @relation(fields: [builderId], references: [id])
+  name               String
+  slug               String           @unique
+  description        String
+  propertyType       String
+  city               String
+  locality           String
+  address            String
+  latitude           Float?
+  longitude          Float?
+  priceFrom          Decimal?         @db.Decimal(12, 2)
+  priceTo            Decimal?         @db.Decimal(12, 2)
+  areaFrom           Int?
+  areaTo             Int?
+  totalUnits         Int
+  availableUnits     Int
+  possessionDate     DateTime?
+  status             ProjectStatus    @default(DRAFT)
+  reraNumber         String?
+  reraStatus         ReraStatus       @default(PENDING)
+  verificationStatus VerificationStatus @default(PENDING)
+  viewCount          Int              @default(0)
+  amenities          String[]         @default([])
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  media  PropertyImage[]
+  leads  Lead[]
+  promotions Promotion[]
+  analyticsEvents AnalyticsEvent[]
+
+  @@index([builderId, status])
+  @@index([city, locality, status])
+  @@index([propertyType, status])
+  @@index([verificationStatus, reraStatus])
+}
+
 model PropertyImage {
   id         String    @id @default(cuid())
   propertyId String?
   property   Property? @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  projectId  String?
+  project    Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   businessId String
   business   Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
   publicId   String?
   url        String
   sortOrder  Int       @default(0)
   isCover    Boolean   @default(false)
+  mediaType  ProjectMediaType @default(GALLERY)
 
   @@index([propertyId])
+  @@index([projectId, mediaType])
   @@index([businessId])
+}
+
+model VerificationRecord {
+  id               String                 @id @default(cuid())
+  entityType       VerificationEntityType
+  entityId         String
+  verificationType VerificationType
+  status           VerificationStatus     @default(PENDING)
+  reviewedBy       String?
+  reviewer         User?                  @relation("VerificationReviewer", fields: [reviewedBy], references: [id], onDelete: SetNull)
+  reviewedAt       DateTime?
+  reason           String?
+  notes            String?
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  @@index([entityType, entityId, verificationType])
+  @@index([status, createdAt])
+}
+
+model Report {
+  id          String       @id @default(cuid())
+  reporterId  String?
+  reporter    User?        @relation(fields: [reporterId], references: [id], onDelete: SetNull)
+  entityType  VerificationEntityType
+  entityId    String
+  reason      ReportReason
+  description String
+  status      ReportStatus @default(OPEN)
+  reviewedBy  String?
+  reviewer    User?        @relation("ReportReviewer", fields: [reviewedBy], references: [id], onDelete: SetNull)
+  reviewedAt  DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([entityType, entityId, status])
+  @@index([status, createdAt])
 }
 
 model Payment {
@@ -137,16 +460,129 @@ model Payment {
   business        Business      @relation(fields: [businessId], references: [id])
   propertyId      String?       @unique
   property        Property?     @relation(fields: [propertyId], references: [id])
+  subscriptionId   String?       @unique
+  subscription     Subscription? @relation(fields: [subscriptionId], references: [id])
   amount          Decimal       @db.Decimal(12, 2)
   currency        String        @default("INR")
   status          PaymentStatus @default(PENDING)
   gateway         String        @default("stripe")
   gatewayRef      String? // Stripe PaymentIntent / Razorpay order id
+  providerPaymentId      String?
+  providerCustomerId     String?
+  providerSubscriptionId String?
   invoiceUrl      String?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
   @@index([businessId, status])
+  @@index([providerPaymentId])
+  @@index([providerSubscriptionId])
+}
+
+model PromotionConfig {
+  id                  String          @id @default(cuid())
+  type                PromotionType   @unique
+  price               Decimal         @db.Decimal(12, 2)
+  durationDays        Int
+  allowedCustomerTypes BusinessAccountType[]
+  priorityWeight      Int             @default(0)
+  isActive            Boolean         @default(true)
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+}
+
+model Promotion {
+  id             String            @id @default(cuid())
+  propertyId     String?
+  property       Property?         @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  projectId      String?
+  project        Project?          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  businessId     String
+  business       Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  type           PromotionType
+  startAt        DateTime
+  endAt          DateTime
+  status         PromotionStatus   @default(PENDING_PAYMENT)
+  paymentId      String?           @unique
+  priorityWeight Int               @default(0)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@index([propertyId, status, startAt, endAt])
+  @@index([projectId, status, startAt, endAt])
+  @@index([businessId, status])
+}
+
+model Campaign {
+  id          String         @id @default(cuid())
+  businessId  String
+  business    Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name        String
+  targetUrl   String
+  startAt     DateTime
+  endAt       DateTime
+  budget      Decimal        @db.Decimal(12, 2)
+  status      CampaignStatus @default(DRAFT)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  creatives   Creative[]
+  placements CampaignPlacement[]
+  impressions AdImpression[]
+  clicks      AdClick[]
+
+  @@index([status, startAt, endAt])
+  @@index([businessId, status])
+}
+
+model Creative {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  assetUrl   String
+  headline   String?
+  createdAt  DateTime @default(now())
+}
+
+model CampaignPlacement {
+  id         String      @id @default(cuid())
+  campaignId String
+  campaign   Campaign    @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  placement  AdPlacement
+
+  @@unique([campaignId, placement])
+  @@index([placement])
+}
+
+model AdImpression {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@index([campaignId, createdAt])
+}
+
+model AdClick {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@index([campaignId, createdAt])
+}
+
+model WebhookEvent {
+  id               String                  @id @default(cuid())
+  provider         String
+  eventId          String
+  eventType        String
+  processedAt      DateTime?
+  processingStatus WebhookProcessingStatus @default(PROCESSING)
+  createdAt        DateTime                @default(now())
+
+  @@unique([provider, eventId])
+  @@index([provider, processingStatus])
 }
 
 model Favorite {
@@ -189,18 +625,86 @@ model Notification {
   @@index([userId, createdAt])
 }
 
-model Lead {
-  id         String   @id @default(cuid())
-  propertyId String
-  property   Property @relation(fields: [propertyId], references: [id])
-  userId     String?
-  user       User?    @relation(fields: [userId], references: [id])
-  name       String
-  contact    String
-  message    String
-  createdAt  DateTime @default(now())
+model NotificationDelivery {
+  id        String @id @default(cuid())
+  userId    String
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event     String
+  eventKey  String
+  status    NotificationDeliveryStatus @default(PENDING)
+  attempts  Int @default(0)
+  lastError String?
+  payload   Json
+  sentAt    DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  @@index([propertyId])
+  @@unique([userId, event, eventKey])
+  @@index([status, createdAt])
+}
+
+model AnalyticsEvent {
+  id           String             @id @default(cuid())
+  event        AnalyticsEventType
+  occurredAt   DateTime           @default(now())
+  userId       String?
+  user         User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  businessId   String?
+  business     Business?          @relation(fields: [businessId], references: [id], onDelete: SetNull)
+  propertyId   String?
+  property     Property?          @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  projectId    String?
+  project      Project?           @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  city         String?
+  propertyType String?
+  metadata     Json?
+
+  @@index([event, occurredAt])
+  @@index([businessId, occurredAt])
+  @@index([propertyId, event, occurredAt])
+  @@index([projectId, event, occurredAt])
+  @@index([city, occurredAt])
+}
+
+model Lead {
+  id              String     @id @default(cuid())
+  propertyId      String?
+  property        Property?  @relation(fields: [propertyId], references: [id])
+  projectId       String?
+  project         Project?   @relation(fields: [projectId], references: [id])
+  userId          String?
+  user            User?      @relation(fields: [userId], references: [id])
+  name            String
+  contact         String
+  message         String
+  status          LeadStatus @default(NEW)
+  assignedTo      String?
+  notes           String?
+  nextFollowUpAt  DateTime?
+  contactedAt     DateTime?
+  siteVisitAt     DateTime?
+  closedAt        DateTime?
+  source          String?
+  lastUpdatedAt   DateTime   @default(now()) @updatedAt
+  createdAt       DateTime   @default(now())
+
+  events LeadEvent[]
+
+  @@index([propertyId, status, createdAt])
+  @@index([projectId, status, createdAt])
+  @@index([status, nextFollowUpAt])
+  @@index([source])
+}
+
+model LeadEvent {
+  id        String   @id @default(cuid())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  type      String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([leadId, createdAt])
 }
 
 model PricingConfig {

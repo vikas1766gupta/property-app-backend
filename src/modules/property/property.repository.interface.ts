@@ -1,4 +1,4 @@
-import { PropertyEntity, CreatePropertyInput, PropertyImageReference, PropertySearchFilters, ListingStatus, UpdatePropertyInput } from "./property.entity";
+import { PropertyEntity, CreatePropertyInput, PropertyImageReference, PropertySearchFilters, ListingStatus, UpdatePropertyInput, DuplicatePropertyInput } from "./property.entity";
 
 /**
  * Repository interface (port). Services depend on THIS, never on a concrete
@@ -16,4 +16,6 @@ export interface IPropertyRepository {
   delete(id: string): Promise<void>;
   countByBusiness(businessId: string): Promise<number>;
   listByBusiness(businessId: string): Promise<PropertyEntity[]>;
+  findPotentialDuplicates?(input: DuplicatePropertyInput): Promise<PropertyEntity[]>;
+  markDuplicate?(id: string, reason: string): Promise<PropertyEntity>;
 }

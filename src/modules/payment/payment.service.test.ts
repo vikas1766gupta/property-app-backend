@@ -81,4 +81,51 @@ describe("PaymentService pricing", () => {
       .resolves.toEqual({ propertyId: "property-2", succeeded: false });
     expect(paymentRepository.updateStatusByGatewayRef).toHaveBeenCalledWith("pi_failed", "FAILED");
   });
+
+  it("processes a webhook event only once", async () => {
+    const event = {
+      id: "evt_123",
+      type: "payment_intent.succeeded",
+      data: { object: { id: "pi_idempotent", metadata: { propertyId: "property-1" }, amount_received: 72550, currency: "inr" } },
+    };
+    constructEvent.mockReturnValue(event);
+    const paymentRepository = {
+      findWebhookEvent: vi.fn().mockResolvedValueOnce(null).mockResolvedValueOnce({ id: "event-row", processingStatus: "PROCESSED" }),
+      createWebhookEvent: vi.fn().mockResolvedValue({ id: "event-row", processingStatus: "PROCESSING" }),
+      markWebhookEvent: vi.fn(),
+      updateFromProvider: vi.fn().mockResolvedValue({ id: "payment-1" }),
+    } as unknown as IPaymentRepository;
+    const service = new PaymentService(paymentRepository, "sk_test_dummy", { getConfig: vi.fn() } as unknown as PricingService);
+
+    await service.handleWebhookEvent(Buffer.from("{}"), "signature", "webhook-secret");
+    const duplicate = await service.handleWebhookEvent(Buffer.from("{}"), "signature", "webhook-secret");
+
+    expect(paymentRepository.updateFromProvider).toHaveBeenCalledTimes(1);
+    expect(paymentRepository.markWebhookEvent).toHaveBeenCalledWith("event-row", "PROCESSED");
+    expect(duplicate).toMatchObject({ duplicate: true, succeeded: false });
+  });
+
+  it("maps Stripe subscription updates into the subscription domain", async () => {
+    constructEvent.mockReturnValue({
+      id: "evt_subscription_updated",
+      type: "customer.subscription.updated",
+      data: { object: { id: "sub_stripe", status: "past_due", current_period_start: 1720000000, current_period_end: 1722600000, cancel_at_period_end: true, metadata: { subscriptionId: "sub_local" } } },
+    });
+    const paymentRepository = {
+      findWebhookEvent: vi.fn().mockResolvedValue(null),
+      createWebhookEvent: vi.fn().mockResolvedValue({ id: "event-row", processingStatus: "PROCESSING" }),
+      markWebhookEvent: vi.fn(),
+    } as unknown as IPaymentRepository;
+    const subscriptionService = { syncFromProvider: vi.fn().mockResolvedValue({ id: "sub_local" }) };
+    const service = new PaymentService(paymentRepository, "sk_test_dummy", { getConfig: vi.fn() } as unknown as PricingService, subscriptionService as any);
+
+    await service.handleWebhookEvent(Buffer.from("{}"), "signature", "webhook-secret");
+
+    expect(subscriptionService.syncFromProvider).toHaveBeenCalledWith(expect.objectContaining({
+      subscriptionId: "sub_local",
+      providerSubscriptionId: "sub_stripe",
+      status: "past_due",
+      cancelAtPeriodEnd: true,
+    }));
+  });
 });

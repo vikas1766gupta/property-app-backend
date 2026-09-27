@@ -2,9 +2,11 @@ import { Request, Response } from "express";
 import { PaymentService } from "./payment.service";
 import { PropertyService } from "@modules/property/property.service";
 import { ForbiddenError, BadRequestError } from "@common/errors/AppError";
+import { SubscriptionService } from "@modules/subscription/subscription.service";
+import { env } from "@config/env";
 
 export class PaymentController {
-  constructor(private readonly paymentService: PaymentService, private readonly propertyService: PropertyService) {}
+  constructor(private readonly paymentService: PaymentService, private readonly propertyService: PropertyService, private readonly subscriptionService?: SubscriptionService) {}
 
   createIntent = async (req: Request, res: Response): Promise<void> => {
     if (!req.auth?.businessId) throw new ForbiddenError("Business account required");
@@ -22,14 +24,11 @@ export class PaymentController {
   /** Stripe webhook — must receive the RAW body, mounted before the JSON body parser. */
   webhook = async (req: Request, res: Response): Promise<void> => {
     const signature = req.headers["stripe-signature"] as string;
-    const { propertyId, succeeded } = await this.paymentService.handleWebhookEvent(
+    await this.paymentService.handleWebhookEvent(
       req.body,
       signature,
-      process.env.STRIPE_WEBHOOK_SECRET as string
+      env.stripeWebhookSecret
     );
-    if (succeeded && propertyId) {
-      await this.propertyService.publishAfterPayment(propertyId);
-    }
     res.json({ received: true });
   };
 }
