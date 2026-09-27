@@ -1,6 +1,18 @@
 export type ListingType = "RENT" | "SALE";
 export type ListingStatus = "DRAFT" | "PENDING_PAYMENT" | "PUBLISHED" | "FLAGGED" | "REMOVED";
 
+export interface PropertyImageReference {
+  id: string;
+  url: string;
+  sortOrder: number;
+  isCover: boolean;
+}
+
+export interface PropertyImageInput {
+  id: string;
+  isCover: boolean;
+}
+
 /**
  * Domain entity. Deliberately has ZERO dependency on Prisma (or any ORM) so
  * that Services/Controllers can be unit-tested and reasoned about without
@@ -29,7 +41,8 @@ export class PropertyEntity {
     public isFreeListing: boolean,
     public createdAt: Date,
     public latitude?: number | null,
-    public longitude?: number | null
+    public longitude?: number | null,
+    public imageRefs: PropertyImageReference[] = []
   ) {}
 }
 
@@ -51,7 +64,7 @@ export interface CreatePropertyInput {
   areaSqft?: number;
   furnishingStatus?: string;
   amenities?: string[];
-  imageUrls?: string[];
+  imageRefs?: PropertyImageInput[];
 }
 
 export type UpdatePropertyInput = Partial<
@@ -72,6 +85,19 @@ export interface PropertySearchFilters {
   maxPrice?: number;
   minBedrooms?: number;
   amenities?: string[];
+  latitude?: number;
+  longitude?: number;
+  radiusKm?: number;
   page?: number;
   pageSize?: number;
+}
+
+export interface SavedSearchEntity {
+  id: string;
+  userId: string;
+  name: string;
+  filters: Omit<PropertySearchFilters, "page" | "pageSize">;
+  notifyOnMatch: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 }

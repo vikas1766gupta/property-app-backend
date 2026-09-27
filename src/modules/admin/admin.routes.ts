@@ -13,6 +13,7 @@ export function adminRoutes(controller: AdminController): Router {
   router.patch("/listings/:id/flag", asyncHandler(controller.flagListing));
   router.patch("/listings/:id/remove", asyncHandler(controller.removeListing));
   router.get("/reports/revenue", asyncHandler(controller.revenueReport));
+  router.get("/pricing", asyncHandler(controller.getPricing));
   router.patch("/pricing", asyncHandler(controller.updatePricing));
 
   return router;
