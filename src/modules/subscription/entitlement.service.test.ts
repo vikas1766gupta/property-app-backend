@@ -5,7 +5,7 @@ const freePlan = { id: "free", name: "FREE", price: 0, currency: "INR", billingI
 const proPlan = { ...freePlan, id: "pro", name: "PRO", price: 1999, maxActiveListings: 25, leadManagement: true, isActive: true };
 
 function setup(subscription: any, count = 4, free = freePlan) {
-  const planService = { getFreePlan: vi.fn().mockResolvedValue(free) };
+  const planService = { getFreePlan: vi.fn().mockResolvedValue(free), getByName: vi.fn().mockResolvedValue(null) };
   const subscriptionRepo = { findCurrentByBusiness: vi.fn().mockResolvedValue(subscription) };
   const propertyRepo = { countByBusiness: vi.fn().mockResolvedValue(count) };
   const pricingService = { getConfig: vi.fn().mockResolvedValue({ freeListingLimit: free.maxActiveListings, pricePerListing: 499, currency: "INR" }) };

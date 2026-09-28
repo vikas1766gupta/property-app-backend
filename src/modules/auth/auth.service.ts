@@ -24,6 +24,15 @@ export class AuthService {
     return this.issueToken(user.id, user.role);
   }
 
+  async registerAdmin(email: string, password: string) {
+    const existing = await this.userRepo.findByEmail(email);
+    if (existing) throw new ConflictError("Email already registered");
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const user = await this.userRepo.createAdminUser({ email, passwordHash });
+    return this.issueToken(user.id, user.role);
+  }
+
   async login(email: string, password: string) {
     const user = await this.userRepo.findByEmail(email);
     if (!user || !user.passwordHash) throw new UnauthorizedError("Invalid credentials");

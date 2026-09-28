@@ -3,6 +3,7 @@ import { PlanService } from "./plan.service";
 import { SubscriptionRepositoryPrisma } from "./subscription.repository.prisma";
 import { IPropertyRepository } from "../property/property.repository.interface";
 import { PricingService } from "../pricing/pricing.service";
+import { env } from "@config/env";
 
 const ACTIVE_STATUSES = new Set(["ACTIVE", "TRIALING"]);
 
@@ -19,6 +20,10 @@ export class EntitlementService {
     const now = new Date();
     if (subscription && ACTIVE_STATUSES.has(subscription.status) && subscription.currentPeriodEnd > now && subscription.plan.isActive) {
       return { plan: subscription.plan, subscription };
+    }
+    if (env.nodeEnv !== "production" && env.defaultBusinessPlan) {
+      const defaultPlan = await this.planService.getByName(env.defaultBusinessPlan);
+      if (defaultPlan?.isActive) return { plan: defaultPlan, subscription: null };
     }
     const freePlan = await this.planService.getFreePlan();
     const pricing = await this.pricingService.getConfig();

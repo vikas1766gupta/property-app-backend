@@ -18,6 +18,11 @@ export class PlanService {
     return plan ? this.toPlan(plan) : null;
   }
 
+  async getByName(name: string): Promise<Plan | null> {
+    const plan = await this.prisma.plan.findUnique({ where: { name } });
+    return plan ? this.toPlan(plan) : null;
+  }
+
   async getFreePlan(): Promise<Plan> {
     const plan = await this.prisma.plan.findUnique({ where: { name: "FREE" } });
     if (!plan || !plan.isActive) {

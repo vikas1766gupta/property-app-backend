@@ -15,6 +15,11 @@ const registerBuyerSchema = z.object({
   password: z.string().min(8).optional(), // optional for OAuth-based signup handled elsewhere
 });
 
+const registerAdminSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+});
+
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string(),
@@ -34,6 +39,12 @@ export class AuthController {
     const parsed = registerBuyerSchema.safeParse(req.body);
     if (!parsed.success) throw new BadRequestError("Invalid payload", parsed.error.flatten());
     res.status(201).json(await this.authService.registerBuyer(parsed.data.email, parsed.data.password));
+  };
+
+  registerAdmin = async (req: Request, res: Response): Promise<void> => {
+    const parsed = registerAdminSchema.safeParse(req.body);
+    if (!parsed.success) throw new BadRequestError("Invalid payload", parsed.error.flatten());
+    res.status(201).json(await this.authService.registerAdmin(parsed.data.email, parsed.data.password));
   };
 
   login = async (req: Request, res: Response): Promise<void> => {

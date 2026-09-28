@@ -29,4 +29,11 @@ export class UserRepositoryPrisma implements IUserRepository {
     });
     return new UserEntity(row.id, row.email, row.role, row.passwordHash);
   }
+
+  async createAdminUser(data: { email: string; passwordHash: string }) {
+    const row = await this.prisma.user.create({
+      data: { email: data.email, passwordHash: data.passwordHash, role: "ADMIN" },
+    });
+    return new UserEntity(row.id, row.email, row.role, row.passwordHash);
+  }
 }

@@ -26,6 +26,7 @@ beforeEach(() => {
     findByEmail: vi.fn(),
     createBusinessUser: vi.fn(),
     createBuyerUser: vi.fn(),
+    createAdminUser: vi.fn(),
   };
   service = new AuthService(repository, secret);
 });

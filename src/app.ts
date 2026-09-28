@@ -166,7 +166,9 @@ export function buildApp(): Express {
 
   // --- Global middleware ---
   app.use(helmet());
-  app.use(cors({ origin: env.corsOrigin, credentials: true }));
+  const corsOrigins = env.corsOrigin.split(',').map((origin) => origin.trim()).filter(Boolean);
+  if (env.nodeEnv !== 'production') corsOrigins.push('http://127.0.0.1:4200');
+  app.use(cors({ origin: corsOrigins, credentials: true }));
   app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 300 }));
   app.use(requestIdMiddleware);
   app.use(requestLoggerMiddleware);
@@ -181,7 +183,7 @@ export function buildApp(): Express {
   app.use(express.json({ limit: "1mb" }));
 
   // --- Routes ---
-  app.use("/api/auth", rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false }), authRoutes(authController));
+  app.use("/api/auth", rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false }), authRoutes(authController, env.nodeEnv !== "production"));
   app.use("/api/properties/saved-searches", savedSearchRoutes(savedSearchController));
   app.use("/api/properties", propertyRoutes(propertyController));
   app.use("/api/payments", paymentRoutes(paymentController));

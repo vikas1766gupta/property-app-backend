@@ -29,7 +29,27 @@ async function upsertBusiness(userId: string, accountType: BusinessAccountType, 
   });
 }
 
+async function upsertPlan(input: {
+  name: string;
+  price: number;
+  maxActiveListings: number;
+  featuredCredits: number;
+  maxTeamMembers: number;
+  leadManagement: boolean;
+  analytics: boolean;
+  priorityVisibility: boolean;
+  projectListingAccess: boolean;
+}) {
+  return prisma.plan.upsert({
+    where: { name: input.name },
+    update: input,
+    create: input,
+  });
+}
+
 async function main() {
+  await upsertPlan({ name: "FREE", price: 0, maxActiveListings: 5, featuredCredits: 0, maxTeamMembers: 1, leadManagement: false, analytics: false, priorityVisibility: false, projectListingAccess: false });
+  await upsertPlan({ name: "BUSINESS", price: 999, maxActiveListings: 50, featuredCredits: 10, maxTeamMembers: 5, leadManagement: true, analytics: true, priorityVisibility: true, projectListingAccess: true });
   const admin = await upsertUser(required("SEED_ADMIN_EMAIL"), required("SEED_ADMIN_PASSWORD"), Role.ADMIN);
   const brokerUser = await upsertUser(required("SEED_BROKER_EMAIL"), required("SEED_BROKER_PASSWORD"), Role.BUSINESS);
   const ownerUser = await upsertUser(required("SEED_OWNER_EMAIL"), required("SEED_OWNER_PASSWORD"), Role.BUSINESS);

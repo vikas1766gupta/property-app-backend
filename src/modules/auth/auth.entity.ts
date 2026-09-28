@@ -14,4 +14,5 @@ export interface IUserRepository {
   findByEmail(email: string): Promise<UserEntity | null>;
   createBusinessUser(data: { email: string; passwordHash: string; companyName: string; contactPhone?: string }): Promise<UserEntity>;
   createBuyerUser(data: { email: string; passwordHash: string | null }): Promise<UserEntity>;
+  createAdminUser(data: { email: string; passwordHash: string }): Promise<UserEntity>;
 }
