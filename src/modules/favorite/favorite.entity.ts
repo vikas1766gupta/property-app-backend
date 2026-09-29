@@ -6,6 +6,6 @@ export class FavoriteEntity {
     public userId: string,
     public propertyId: string,
     public createdAt: Date,
-    public property: PropertyEntity
+    public property: PropertyEntity,
   ) {}
 }

@@ -38,12 +38,16 @@ export class SavedSearchRepositoryPrisma implements ISavedSearchRepository {
   }
 
   async listWithNotificationsEnabled(): Promise<SavedSearchEntity[]> {
-    const rows = await this.prisma.savedSearch.findMany({ where: { notifyOnMatch: true } });
+    const rows = await this.prisma.savedSearch.findMany({
+      where: { notifyOnMatch: true },
+    });
     return rows.map((row) => this.toEntity(row));
   }
 
   async removeForUser(id: string, userId: string): Promise<boolean> {
-    const result = await this.prisma.savedSearch.deleteMany({ where: { id, userId } });
+    const result = await this.prisma.savedSearch.deleteMany({
+      where: { id, userId },
+    });
     return result.count > 0;
   }
 }

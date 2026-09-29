@@ -1,5 +1,9 @@
 import { ForbiddenError, NotFoundError } from "@common/errors/AppError";
-import { BusinessProfile, BusinessProfileUpdate, IBusinessRepository } from "./business.entity";
+import {
+  BusinessProfile,
+  BusinessProfileUpdate,
+  IBusinessRepository,
+} from "./business.entity";
 
 export class BusinessService {
   constructor(private readonly businessRepo: IBusinessRepository) {}
@@ -14,10 +18,14 @@ export class BusinessService {
     return this.businessRepo.findAll();
   }
 
-  async updateOwnProfile(businessId: string, input: BusinessProfileUpdate): Promise<BusinessProfile> {
+  async updateOwnProfile(
+    businessId: string,
+    input: BusinessProfileUpdate,
+  ): Promise<BusinessProfile> {
     const existing = await this.businessRepo.findById(businessId);
     if (!existing) throw new NotFoundError("Business profile not found");
-    if (existing.id !== businessId) throw new ForbiddenError("Not your business profile");
+    if (existing.id !== businessId)
+      throw new ForbiddenError("Not your business profile");
     return this.businessRepo.update(businessId, input);
   }
 

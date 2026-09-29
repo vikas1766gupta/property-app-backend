@@ -31,15 +31,28 @@ describe("saved search matching", () => {
 
   it("rejects properties outside price, amenities, or location criteria", () => {
     expect(matchesPropertySearch(property, { maxPrice: 20000 })).toBe(false);
-    expect(matchesPropertySearch(property, { amenities: ["pool"] })).toBe(false);
-    expect(matchesPropertySearch(property, { latitude: 19, longitude: 73.85, radiusKm: 5 })).toBe(false);
+    expect(matchesPropertySearch(property, { amenities: ["pool"] })).toBe(
+      false,
+    );
+    expect(
+      matchesPropertySearch(property, {
+        latitude: 19,
+        longitude: 73.85,
+        radiusKm: 5,
+      }),
+    ).toBe(false);
   });
 
   it("does not match a radius search when the property has no coordinates", () => {
-    expect(matchesPropertySearch({ ...property, latitude: null, longitude: null }, {
-      latitude: 18.52,
-      longitude: 73.85,
-      radiusKm: 5,
-    })).toBe(false);
+    expect(
+      matchesPropertySearch(
+        { ...property, latitude: null, longitude: null },
+        {
+          latitude: 18.52,
+          longitude: 73.85,
+          radiusKm: 5,
+        },
+      ),
+    ).toBe(false);
   });
 });

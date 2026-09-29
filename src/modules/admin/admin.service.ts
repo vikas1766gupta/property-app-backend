@@ -43,9 +43,23 @@ export class AdminService {
     return this.notificationDeliveryRepo?.listFailures() ?? Promise.resolve([]);
   }
 
-  listProjects() { return this.adminRepo.listProjects ? this.adminRepo.listProjects() : Promise.resolve([]); }
+  listProjects() {
+    return this.adminRepo.listProjects
+      ? this.adminRepo.listProjects()
+      : Promise.resolve([]);
+  }
 
-  updateProject(id: string, input: { status?: "DRAFT" | "PUBLISHED" | "SOLD_OUT" | "SUSPENDED" | "COMPLETED"; verificationStatus?: "PENDING" | "VERIFIED" | "REJECTED" }) { if (!this.adminRepo.updateProject) throw new Error("Project moderation unavailable"); return this.adminRepo.updateProject(id, input); }
+  updateProject(
+    id: string,
+    input: {
+      status?: "DRAFT" | "PUBLISHED" | "SOLD_OUT" | "SUSPENDED" | "COMPLETED";
+      verificationStatus?: "PENDING" | "VERIFIED" | "REJECTED";
+    },
+  ) {
+    if (!this.adminRepo.updateProject)
+      throw new Error("Project moderation unavailable");
+    return this.adminRepo.updateProject(id, input);
+  }
 
   getPricing(): Promise<PricingConfig> {
     return this.pricingService.getConfig();

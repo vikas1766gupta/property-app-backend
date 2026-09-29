@@ -3,14 +3,25 @@ import { AdminService } from "./admin.service";
 import { PlanService } from "@modules/subscription/plan.service";
 
 export class AdminController {
-  constructor(private readonly adminService: AdminService, private readonly planService: PlanService) {}
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly planService: PlanService,
+  ) {}
 
   listBusinesses = async (_req: Request, res: Response): Promise<void> => {
     res.json(await this.adminService.listBusinesses());
   };
 
   verifyBusiness = async (req: Request, res: Response): Promise<void> => {
-    const { status } = req.body as { status: "PENDING" | "UNDER_REVIEW" | "VERIFIED" | "REJECTED" | "SUSPENDED" | "EXPIRED" };
+    const { status } = req.body as {
+      status:
+        | "PENDING"
+        | "UNDER_REVIEW"
+        | "VERIFIED"
+        | "REJECTED"
+        | "SUSPENDED"
+        | "EXPIRED";
+    };
     res.json(await this.adminService.verifyBusiness(req.params.id, status));
   };
 
@@ -34,13 +45,20 @@ export class AdminController {
     res.json(await this.adminService.subscriptionReport());
   };
 
-  notificationDeliveryFailures = async (_req: Request, res: Response): Promise<void> => {
+  notificationDeliveryFailures = async (
+    _req: Request,
+    res: Response,
+  ): Promise<void> => {
     res.json(await this.adminService.notificationDeliveryFailures());
   };
 
-  listProjects = async (_req: Request, res: Response): Promise<void> => { res.json(await this.adminService.listProjects()); };
+  listProjects = async (_req: Request, res: Response): Promise<void> => {
+    res.json(await this.adminService.listProjects());
+  };
 
-  moderateProject = async (req: Request, res: Response): Promise<void> => { res.json(await this.adminService.updateProject(req.params.id, req.body)); };
+  moderateProject = async (req: Request, res: Response): Promise<void> => {
+    res.json(await this.adminService.updateProject(req.params.id, req.body));
+  };
 
   getPricing = async (_req: Request, res: Response): Promise<void> => {
     res.json(await this.adminService.getPricing());

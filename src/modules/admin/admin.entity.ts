@@ -1,5 +1,12 @@
-export type AdminBusinessStatus = "PENDING" | "UNDER_REVIEW" | "VERIFIED" | "REJECTED" | "SUSPENDED" | "EXPIRED";
-export type AdminListingStatus = "DRAFT" | "PENDING_PAYMENT" | "PUBLISHED" | "FLAGGED" | "REMOVED";
+export type AdminBusinessStatus =
+  | "PENDING"
+  | "UNDER_REVIEW"
+  | "VERIFIED"
+  | "REJECTED"
+  | "SUSPENDED"
+  | "EXPIRED";
+export type AdminListingStatus =
+  "DRAFT" | "PENDING_PAYMENT" | "PUBLISHED" | "FLAGGED" | "REMOVED";
 export type AdminUserRole = "BUSINESS" | "BUYER" | "ADMIN";
 
 export interface AdminBusinessUpdateRecord {
@@ -77,4 +84,3 @@ export interface AdminListingRecord extends AdminListingUpdateRecord {
   business: AdminListingBusinessRecord;
   images: AdminListingImageRecord[];
 }
-

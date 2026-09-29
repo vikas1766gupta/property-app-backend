@@ -1,5 +1,11 @@
 export type BusinessAccountType = "OWNER" | "BROKER" | "BUILDER";
-export type BusinessVerificationStatus = "PENDING" | "UNDER_REVIEW" | "VERIFIED" | "REJECTED" | "SUSPENDED" | "EXPIRED";
+export type BusinessVerificationStatus =
+  | "PENDING"
+  | "UNDER_REVIEW"
+  | "VERIFIED"
+  | "REJECTED"
+  | "SUSPENDED"
+  | "EXPIRED";
 
 export interface BusinessStats {
   activePropertyCount: number;

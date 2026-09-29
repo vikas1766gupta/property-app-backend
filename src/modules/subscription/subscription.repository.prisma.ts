@@ -1,14 +1,19 @@
-import { PrismaClient, SubscriptionStatus as PrismaSubscriptionStatus } from "@prisma/client";
+import {
+  PrismaClient,
+  SubscriptionStatus as PrismaSubscriptionStatus,
+} from "@prisma/client";
 import { Subscription } from "./subscription.entity";
 import { PlanService } from "./plan.service";
 
 export class SubscriptionRepositoryPrisma {
   constructor(
     private readonly prisma: PrismaClient,
-    private readonly planService: PlanService
+    private readonly planService: PlanService,
   ) {}
 
-  async findCurrentByBusiness(businessId: string): Promise<Subscription | null> {
+  async findCurrentByBusiness(
+    businessId: string,
+  ): Promise<Subscription | null> {
     const subscription = await this.prisma.subscription.findFirst({
       where: { businessId },
       include: { plan: true },
@@ -18,7 +23,10 @@ export class SubscriptionRepositoryPrisma {
   }
 
   async findById(id: string): Promise<Subscription | null> {
-    const subscription = await this.prisma.subscription.findUnique({ where: { id }, include: { plan: true } });
+    const subscription = await this.prisma.subscription.findUnique({
+      where: { id },
+      include: { plan: true },
+    });
     return subscription ? this.toSubscription(subscription) : null;
   }
 
@@ -30,7 +38,10 @@ export class SubscriptionRepositoryPrisma {
     currentPeriodEnd: Date;
     provider: string;
   }): Promise<Subscription> {
-    const subscription = await this.prisma.subscription.create({ data, include: { plan: true } });
+    const subscription = await this.prisma.subscription.create({
+      data,
+      include: { plan: true },
+    });
     return this.toSubscription(subscription);
   }
 
@@ -43,28 +54,46 @@ export class SubscriptionRepositoryPrisma {
     return this.toSubscription(subscription);
   }
 
-  async activate(id: string, providerSubscriptionId?: string): Promise<Subscription> {
+  async activate(
+    id: string,
+    providerSubscriptionId?: string,
+  ): Promise<Subscription> {
     const subscription = await this.prisma.subscription.update({
       where: { id },
-      data: { status: "ACTIVE", ...(providerSubscriptionId ? { providerSubscriptionId } : {}) },
+      data: {
+        status: "ACTIVE",
+        ...(providerSubscriptionId ? { providerSubscriptionId } : {}),
+      },
       include: { plan: true },
     });
     return this.toSubscription(subscription);
   }
 
-  async findByProviderSubscriptionId(providerSubscriptionId: string): Promise<Subscription | null> {
-    const subscription = await this.prisma.subscription.findUnique({ where: { providerSubscriptionId }, include: { plan: true } });
+  async findByProviderSubscriptionId(
+    providerSubscriptionId: string,
+  ): Promise<Subscription | null> {
+    const subscription = await this.prisma.subscription.findUnique({
+      where: { providerSubscriptionId },
+      include: { plan: true },
+    });
     return subscription ? this.toSubscription(subscription) : null;
   }
 
-  async updateFromProvider(id: string, data: {
-    status: PrismaSubscriptionStatus;
-    currentPeriodStart?: Date;
-    currentPeriodEnd?: Date;
-    cancelAtPeriodEnd?: boolean;
-    providerSubscriptionId?: string;
-  }): Promise<Subscription> {
-    const subscription = await this.prisma.subscription.update({ where: { id }, data, include: { plan: true } });
+  async updateFromProvider(
+    id: string,
+    data: {
+      status: PrismaSubscriptionStatus;
+      currentPeriodStart?: Date;
+      currentPeriodEnd?: Date;
+      cancelAtPeriodEnd?: boolean;
+      providerSubscriptionId?: string;
+    },
+  ): Promise<Subscription> {
+    const subscription = await this.prisma.subscription.update({
+      where: { id },
+      data,
+      include: { plan: true },
+    });
     return this.toSubscription(subscription);
   }
 
@@ -77,10 +106,15 @@ export class SubscriptionRepositoryPrisma {
   }
 
   async addEvent(subscriptionId: string, type: string, metadata?: object) {
-    return this.prisma.subscriptionEvent.create({ data: { subscriptionId, type, metadata } });
+    return this.prisma.subscriptionEvent.create({
+      data: { subscriptionId, type, metadata },
+    });
   }
 
   private toSubscription(subscription: any): Subscription {
-    return { ...subscription, plan: this.planService.toPlan(subscription.plan) };
+    return {
+      ...subscription,
+      plan: this.planService.toPlan(subscription.plan),
+    };
   }
 }

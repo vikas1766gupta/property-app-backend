@@ -1,7 +1,22 @@
-export type ProjectStatus = "DRAFT" | "PUBLISHED" | "SOLD_OUT" | "SUSPENDED" | "COMPLETED";
-export type ReraStatus = "PENDING" | "UNDER_REVIEW" | "VERIFIED" | "NOT_APPLICABLE" | "REJECTED" | "SUSPENDED" | "EXPIRED";
-export type ProjectMediaType = "GALLERY" | "FLOOR_PLAN" | "BROCHURE" | "SITE_PLAN";
-export type ProjectVerificationStatus = "PENDING" | "UNDER_REVIEW" | "VERIFIED" | "REJECTED" | "SUSPENDED" | "EXPIRED";
+export type ProjectStatus =
+  "DRAFT" | "PUBLISHED" | "SOLD_OUT" | "SUSPENDED" | "COMPLETED";
+export type ReraStatus =
+  | "PENDING"
+  | "UNDER_REVIEW"
+  | "VERIFIED"
+  | "NOT_APPLICABLE"
+  | "REJECTED"
+  | "SUSPENDED"
+  | "EXPIRED";
+export type ProjectMediaType =
+  "GALLERY" | "FLOOR_PLAN" | "BROCHURE" | "SITE_PLAN";
+export type ProjectVerificationStatus =
+  | "PENDING"
+  | "UNDER_REVIEW"
+  | "VERIFIED"
+  | "REJECTED"
+  | "SUSPENDED"
+  | "EXPIRED";
 
 export interface ProjectMedia {
   id: string;
@@ -14,7 +29,13 @@ export interface ProjectBuilderSummary {
   id: string;
   name: string;
   profileImage: string | null;
-  verificationStatus: "PENDING" | "UNDER_REVIEW" | "VERIFIED" | "REJECTED" | "SUSPENDED" | "EXPIRED";
+  verificationStatus:
+    | "PENDING"
+    | "UNDER_REVIEW"
+    | "VERIFIED"
+    | "REJECTED"
+    | "SUSPENDED"
+    | "EXPIRED";
 }
 
 export interface ProjectEntity {
@@ -39,7 +60,13 @@ export interface ProjectEntity {
   status: ProjectStatus;
   reraNumber: string | null;
   reraStatus: ReraStatus;
-  verificationStatus: "PENDING" | "UNDER_REVIEW" | "VERIFIED" | "REJECTED" | "SUSPENDED" | "EXPIRED";
+  verificationStatus:
+    | "PENDING"
+    | "UNDER_REVIEW"
+    | "VERIFIED"
+    | "REJECTED"
+    | "SUSPENDED"
+    | "EXPIRED";
   viewCount: number;
   amenities: string[];
   media: ProjectMedia[];
@@ -104,8 +131,16 @@ export interface IProjectRepository {
   delete(id: string): Promise<void>;
   listForBuilder(builderId: string): Promise<ProjectEntity[]>;
   listAllForAdmin(): Promise<ProjectEntity[]>;
-  search(filters: ProjectSearchFilters): Promise<{ items: ProjectEntity[]; total: number }>;
+  search(
+    filters: ProjectSearchFilters,
+  ): Promise<{ items: ProjectEntity[]; total: number }>;
   incrementViews(id: string): Promise<void>;
   similar(project: ProjectEntity, limit: number): Promise<ProjectEntity[]>;
-  updateModeration(id: string, input: { status?: ProjectStatus; verificationStatus?: ProjectVerificationStatus }): Promise<ProjectEntity>;
+  updateModeration(
+    id: string,
+    input: {
+      status?: ProjectStatus;
+      verificationStatus?: ProjectVerificationStatus;
+    },
+  ): Promise<ProjectEntity>;
 }

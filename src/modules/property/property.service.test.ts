@@ -7,7 +7,13 @@ import { PropertyService } from "./property.service";
 
 describe("PropertyService pricing", () => {
   const pricingService = {
-    getConfig: vi.fn().mockResolvedValue({ freeListingLimit: 3, pricePerListing: 499, currency: "INR" }),
+    getConfig: vi
+      .fn()
+      .mockResolvedValue({
+        freeListingLimit: 3,
+        pricePerListing: 499,
+        currency: "INR",
+      }),
   } as unknown as PricingService;
 
   it("requires payment when used listings reach the configured free limit", async () => {
@@ -17,12 +23,22 @@ describe("PropertyService pricing", () => {
       create: vi.fn().mockResolvedValue(property),
       updateStatus: vi.fn().mockResolvedValue(property),
     } as unknown as IPropertyRepository;
-    const service = new PropertyService(repository, {} as PaymentService, pricingService, { upload: vi.fn() });
+    const service = new PropertyService(
+      repository,
+      {} as PaymentService,
+      pricingService,
+      { upload: vi.fn() },
+    );
 
-    const result = await service.createListing({ businessId: "business-1" } as never);
+    const result = await service.createListing({
+      businessId: "business-1",
+    } as never);
 
     expect(result.requiresPayment).toBe(true);
-    expect(repository.updateStatus).toHaveBeenCalledWith("property-1", "PENDING_PAYMENT");
+    expect(repository.updateStatus).toHaveBeenCalledWith(
+      "property-1",
+      "PENDING_PAYMENT",
+    );
   });
 
   it("publishes listings below the configured free limit", async () => {
@@ -32,12 +48,22 @@ describe("PropertyService pricing", () => {
       create: vi.fn().mockResolvedValue(property),
       updateStatus: vi.fn().mockResolvedValue(property),
     } as unknown as IPropertyRepository;
-    const service = new PropertyService(repository, {} as PaymentService, pricingService, { upload: vi.fn() });
+    const service = new PropertyService(
+      repository,
+      {} as PaymentService,
+      pricingService,
+      { upload: vi.fn() },
+    );
 
-    const result = await service.createListing({ businessId: "business-1" } as never);
+    const result = await service.createListing({
+      businessId: "business-1",
+    } as never);
 
     expect(result.requiresPayment).toBe(false);
-    expect(repository.updateStatus).toHaveBeenCalledWith("property-1", "PUBLISHED");
+    expect(repository.updateStatus).toHaveBeenCalledWith(
+      "property-1",
+      "PUBLISHED",
+    );
   });
 
   it("uses entitlement service decisions for listing creation", async () => {
@@ -48,20 +74,36 @@ describe("PropertyService pricing", () => {
       updateStatus: vi.fn().mockResolvedValue(property),
     } as unknown as IPropertyRepository;
     const entitlementService = {
-      canCreateListing: vi.fn().mockResolvedValue({ allowed: true, requiresPayment: false }),
+      canCreateListing: vi
+        .fn()
+        .mockResolvedValue({ allowed: true, requiresPayment: false }),
     };
-    const service = new PropertyService(repository, {} as PaymentService, pricingService, { upload: vi.fn() }, undefined, entitlementService as never);
+    const service = new PropertyService(
+      repository,
+      {} as PaymentService,
+      pricingService,
+      { upload: vi.fn() },
+      undefined,
+      entitlementService as never,
+    );
 
-    const result = await service.createListing({ businessId: "business-1" } as never);
+    const result = await service.createListing({
+      businessId: "business-1",
+    } as never);
 
-    expect(entitlementService.canCreateListing).toHaveBeenCalledWith("business-1");
+    expect(entitlementService.canCreateListing).toHaveBeenCalledWith(
+      "business-1",
+    );
     expect(repository.countByBusiness).not.toHaveBeenCalled();
     expect(result.requiresPayment).toBe(false);
   });
 });
 
 describe("PropertyService ownership", () => {
-  const property = { id: "property-1", businessId: "owner-business" } as PropertyEntity;
+  const property = {
+    id: "property-1",
+    businessId: "owner-business",
+  } as PropertyEntity;
   const pricing = { getConfig: vi.fn() } as unknown as PricingService;
 
   it("rejects updates from a different business without reaching the repository update", async () => {
@@ -69,10 +111,18 @@ describe("PropertyService ownership", () => {
       findById: vi.fn().mockResolvedValue(property),
       update: vi.fn(),
     } as unknown as IPropertyRepository;
-    const service = new PropertyService(repository, {} as PaymentService, pricing, { upload: vi.fn() });
+    const service = new PropertyService(
+      repository,
+      {} as PaymentService,
+      pricing,
+      { upload: vi.fn() },
+    );
 
-    await expect(service.updateListing("property-1", "other-business", { title: "Changed title" }))
-      .rejects.toMatchObject({ statusCode: 403 });
+    await expect(
+      service.updateListing("property-1", "other-business", {
+        title: "Changed title",
+      }),
+    ).rejects.toMatchObject({ statusCode: 403 });
     expect(repository.update).not.toHaveBeenCalled();
   });
 
@@ -81,10 +131,16 @@ describe("PropertyService ownership", () => {
       findById: vi.fn().mockResolvedValue(property),
       delete: vi.fn(),
     } as unknown as IPropertyRepository;
-    const service = new PropertyService(repository, {} as PaymentService, pricing, { upload: vi.fn() });
+    const service = new PropertyService(
+      repository,
+      {} as PaymentService,
+      pricing,
+      { upload: vi.fn() },
+    );
 
-    await expect(service.deleteListing("property-1", "other-business"))
-      .rejects.toMatchObject({ statusCode: 403 });
+    await expect(
+      service.deleteListing("property-1", "other-business"),
+    ).rejects.toMatchObject({ statusCode: 403 });
     expect(repository.delete).not.toHaveBeenCalled();
   });
 
@@ -94,12 +150,23 @@ describe("PropertyService ownership", () => {
       update: vi.fn().mockResolvedValue(property),
       delete: vi.fn().mockResolvedValue(undefined),
     } as unknown as IPropertyRepository;
-    const service = new PropertyService(repository, {} as PaymentService, pricing, { upload: vi.fn() });
+    const service = new PropertyService(
+      repository,
+      {} as PaymentService,
+      pricing,
+      { upload: vi.fn() },
+    );
 
-    await service.updateListing("property-1", "owner-business", { title: "Changed title" });
+    await service.updateListing("property-1", "owner-business", {
+      title: "Changed title",
+    });
     await service.deleteListing("property-1", "owner-business");
 
-    expect(repository.update).toHaveBeenCalledWith("property-1", "owner-business", { title: "Changed title" });
+    expect(repository.update).toHaveBeenCalledWith(
+      "property-1",
+      "owner-business",
+      { title: "Changed title" },
+    );
     expect(repository.delete).toHaveBeenCalledWith("property-1");
   });
 });

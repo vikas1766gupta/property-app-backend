@@ -6,7 +6,9 @@ export class PricingService {
   constructor(private readonly pricingRepo: IPricingRepository) {}
 
   async getConfig(): Promise<PricingConfig> {
-    return (await this.pricingRepo.findCurrent()) ?? { ...DEFAULT_PRICING_CONFIG };
+    return (
+      (await this.pricingRepo.findCurrent()) ?? { ...DEFAULT_PRICING_CONFIG }
+    );
   }
 
   async updateConfig(input: unknown): Promise<PricingConfig> {
@@ -17,27 +19,50 @@ export class PricingService {
     const values = input as Record<string, unknown>;
     const { freeListingLimit, pricePerListing, currency } = values;
 
-    if (typeof freeListingLimit !== "number" || !Number.isInteger(freeListingLimit) || freeListingLimit <= 0) {
-      throw new BadRequestError("Free listing limit must be a positive integer");
+    if (
+      typeof freeListingLimit !== "number" ||
+      !Number.isInteger(freeListingLimit) ||
+      freeListingLimit <= 0
+    ) {
+      throw new BadRequestError(
+        "Free listing limit must be a positive integer",
+      );
     }
-    if (typeof pricePerListing !== "number" || !Number.isFinite(pricePerListing) || pricePerListing <= 0) {
+    if (
+      typeof pricePerListing !== "number" ||
+      !Number.isFinite(pricePerListing) ||
+      pricePerListing <= 0
+    ) {
       throw new BadRequestError("Price per listing must be a positive number");
     }
 
-    const normalizedCurrency = typeof currency === "string" ? currency.trim().toUpperCase() : "";
-    if (!normalizedCurrency || !Intl.supportedValuesOf("currency").includes(normalizedCurrency)) {
-      throw new BadRequestError("Currency must be a valid ISO 4217 currency code");
+    const normalizedCurrency =
+      typeof currency === "string" ? currency.trim().toUpperCase() : "";
+    if (
+      !normalizedCurrency ||
+      !Intl.supportedValuesOf("currency").includes(normalizedCurrency)
+    ) {
+      throw new BadRequestError(
+        "Currency must be a valid ISO 4217 currency code",
+      );
     }
 
-    const currencyFractionDigits = new Intl.NumberFormat("en", {
-      style: "currency",
-      currency: normalizedCurrency,
-    }).resolvedOptions().maximumFractionDigits ?? 2;
+    const currencyFractionDigits =
+      new Intl.NumberFormat("en", {
+        style: "currency",
+        currency: normalizedCurrency,
+      }).resolvedOptions().maximumFractionDigits ?? 2;
     const fractionDigits = Math.min(currencyFractionDigits, 2);
     if (Number(pricePerListing.toFixed(fractionDigits)) !== pricePerListing) {
-      throw new BadRequestError(`Price per listing supports at most ${fractionDigits} decimal places for ${normalizedCurrency}`);
+      throw new BadRequestError(
+        `Price per listing supports at most ${fractionDigits} decimal places for ${normalizedCurrency}`,
+      );
     }
 
-    return this.pricingRepo.save({ freeListingLimit, pricePerListing, currency: normalizedCurrency });
+    return this.pricingRepo.save({
+      freeListingLimit,
+      pricePerListing,
+      currency: normalizedCurrency,
+    });
   }
 }

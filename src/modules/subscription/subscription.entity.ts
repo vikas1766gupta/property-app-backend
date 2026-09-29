@@ -1,4 +1,5 @@
-export type SubscriptionStatus = "ACTIVE" | "TRIALING" | "PAST_DUE" | "CANCELLED" | "EXPIRED" | "INCOMPLETE";
+export type SubscriptionStatus =
+  "ACTIVE" | "TRIALING" | "PAST_DUE" | "CANCELLED" | "EXPIRED" | "INCOMPLETE";
 export type BillingInterval = "MONTHLY" | "YEARLY";
 
 export interface Plan {

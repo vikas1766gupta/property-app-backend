@@ -13,7 +13,10 @@ export class FavoriteService {
     return this.favoriteRepo.addFavorite(userId, propertyId);
   }
 
-  async removeFavorite(userId: string, propertyId: string): Promise<FavoriteState> {
+  async removeFavorite(
+    userId: string,
+    propertyId: string,
+  ): Promise<FavoriteState> {
     await this.favoriteRepo.removeFavorite(userId, propertyId);
     return { propertyId, isFavorited: false };
   }

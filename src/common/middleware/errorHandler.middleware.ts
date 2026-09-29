@@ -7,18 +7,29 @@ export function errorHandlerMiddleware(
   req: Request,
   res: Response,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  next: NextFunction
+  next: NextFunction,
 ): void {
   if (err instanceof AppError) {
     if (err.statusCode >= 500) {
       logger.error(err.message, { stack: err.stack, route: req.originalUrl });
     } else {
-      logger.warn(err.message, { route: req.originalUrl, statusCode: err.statusCode });
+      logger.warn(err.message, {
+        route: req.originalUrl,
+        statusCode: err.statusCode,
+      });
     }
-    res.status(err.statusCode).json({ error: err.message, details: err.details, requestId: res.locals.requestId });
+    res
+      .status(err.statusCode)
+      .json({
+        error: err.message,
+        details: err.details,
+        requestId: res.locals.requestId,
+      });
     return;
   }
 
   logger.error("Unhandled error", { err, route: req.originalUrl });
-  res.status(500).json({ error: "Internal server error", requestId: res.locals.requestId });
+  res
+    .status(500)
+    .json({ error: "Internal server error", requestId: res.locals.requestId });
 }

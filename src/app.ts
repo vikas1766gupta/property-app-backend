@@ -94,7 +94,9 @@ import { requestIdMiddleware } from "@common/middleware/requestId.middleware";
  * classes implementing the same interfaces — nothing else in the app changes.
  */
 export function buildApp(): Express {
-  const prisma = new PrismaClient({ datasources: { db: { url: env.databaseUrl } } });
+  const prisma = new PrismaClient({
+    datasources: { db: { url: env.databaseUrl } },
+  });
   const app = express();
   app.disable("x-powered-by");
   app.set("trust proxy", 1);
@@ -113,14 +115,21 @@ export function buildApp(): Express {
   const favoriteRepo = new FavoriteRepositoryPrisma(prisma);
   const savedSearchRepo = new SavedSearchRepositoryPrisma(prisma);
   const notificationRepo = new NotificationRepositoryPrisma(prisma);
-  const notificationDeliveryRepo = new NotificationDeliveryRepositoryPrisma(prisma);
+  const notificationDeliveryRepo = new NotificationDeliveryRepositoryPrisma(
+    prisma,
+  );
   const emailQueue = new BullMqEmailQueue(env.redisUrl);
   app.locals.prisma = prisma;
   app.locals.emailQueue = emailQueue;
   const businessRepo = new BusinessRepositoryPrisma(prisma);
   const planService = new PlanService(prisma);
-  const subscriptionRepo = new SubscriptionRepositoryPrisma(prisma, planService);
-  const analyticsService = new AnalyticsService(new AnalyticsRepositoryPrisma(prisma));
+  const subscriptionRepo = new SubscriptionRepositoryPrisma(
+    prisma,
+    planService,
+  );
+  const analyticsService = new AnalyticsService(
+    new AnalyticsRepositoryPrisma(prisma),
+  );
 
   // --- Services (business logic layer) ---
   const authService = new AuthService(userRepo, env.jwtSecret);
@@ -128,46 +137,113 @@ export function buildApp(): Express {
   const imageStorage = new CloudinaryPropertyImageStorage(
     env.cloudinaryCloudName,
     env.cloudinaryApiKey,
-    env.cloudinaryApiSecret
+    env.cloudinaryApiSecret,
   );
-  const paymentService = new PaymentService(paymentRepo, env.stripeSecretKey, pricingService, undefined, analyticsService);
-  const notificationService = new NotificationService(notificationRepo, notificationDeliveryRepo, emailQueue);
-  const savedSearchService = new SavedSearchService(savedSearchRepo, notificationService);
-  const entitlementService = new EntitlementService(planService, subscriptionRepo, propertyRepo, pricingService);
-  const propertyService = new PropertyService(propertyRepo, paymentService, pricingService, imageStorage, savedSearchService, entitlementService, analyticsService);
-  const subscriptionService = new SubscriptionService(planService, subscriptionRepo);
-  paymentService.setListingPublisher((propertyId) => propertyService.publishAfterPayment(propertyId));
-  const leadService = new LeadService(leadRepo, propertyRepo, projectRepo, analyticsService);
+  const paymentService = new PaymentService(
+    paymentRepo,
+    env.stripeSecretKey,
+    pricingService,
+    undefined,
+    analyticsService,
+  );
+  const notificationService = new NotificationService(
+    notificationRepo,
+    notificationDeliveryRepo,
+    emailQueue,
+  );
+  const savedSearchService = new SavedSearchService(
+    savedSearchRepo,
+    notificationService,
+  );
+  const entitlementService = new EntitlementService(
+    planService,
+    subscriptionRepo,
+    propertyRepo,
+    pricingService,
+  );
+  const propertyService = new PropertyService(
+    propertyRepo,
+    paymentService,
+    pricingService,
+    imageStorage,
+    savedSearchService,
+    entitlementService,
+    analyticsService,
+  );
+  const subscriptionService = new SubscriptionService(
+    planService,
+    subscriptionRepo,
+  );
+  paymentService.setListingPublisher((propertyId) =>
+    propertyService.publishAfterPayment(propertyId),
+  );
+  const leadService = new LeadService(
+    leadRepo,
+    propertyRepo,
+    projectRepo,
+    analyticsService,
+  );
   const projectService = new ProjectService(projectRepo, businessRepo);
   const trustService = new TrustService(trustRepo, trustRepo);
-  const adminService = new AdminService(adminRepo, pricingService, notificationDeliveryRepo);
+  const adminService = new AdminService(
+    adminRepo,
+    pricingService,
+    notificationDeliveryRepo,
+  );
   const favoriteService = new FavoriteService(favoriteRepo);
   const businessService = new BusinessService(businessRepo);
-  const promotionService = new PromotionService(promotionRepo, entitlementService, businessRepo);
+  const promotionService = new PromotionService(
+    promotionRepo,
+    entitlementService,
+    businessRepo,
+  );
   const advertisingService = new AdvertisingService(advertisingRepo);
-  paymentService.setPromotionActivator((promotionId) => promotionService.activateFromPayment(promotionId));
+  paymentService.setPromotionActivator((promotionId) =>
+    promotionService.activateFromPayment(promotionId),
+  );
 
   // --- Controllers (HTTP layer) ---
   const authController = new AuthController(authService);
   const propertyController = new PropertyController(propertyService);
-  const paymentController = new PaymentController(paymentService, propertyService, subscriptionService);
+  const paymentController = new PaymentController(
+    paymentService,
+    propertyService,
+    subscriptionService,
+  );
   const adminController = new AdminController(adminService, planService);
   const leadController = new LeadController(leadService);
   const projectController = new ProjectController(projectService, leadService);
   const trustController = new TrustController(trustService);
   const favoriteController = new FavoriteController(favoriteService);
   const savedSearchController = new SavedSearchController(savedSearchService);
-  const notificationController = new NotificationController(notificationService);
+  const notificationController = new NotificationController(
+    notificationService,
+  );
   const businessController = new BusinessController(businessService);
-  const subscriptionController = new SubscriptionController(planService, subscriptionService, entitlementService, paymentService);
-  const promotionController = new PromotionController(promotionService, advertisingService, paymentService);
+  const subscriptionController = new SubscriptionController(
+    planService,
+    subscriptionService,
+    entitlementService,
+    paymentService,
+  );
+  const promotionController = new PromotionController(
+    promotionService,
+    advertisingService,
+    paymentService,
+  );
   const seoController = new SeoController(new SeoService(prisma, propertyRepo));
-  const analyticsController = new AnalyticsController(analyticsService, entitlementService);
+  const analyticsController = new AnalyticsController(
+    analyticsService,
+    entitlementService,
+  );
 
   // --- Global middleware ---
   app.use(helmet());
-  const corsOrigins = env.corsOrigin.split(',').map((origin) => origin.trim()).filter(Boolean);
-  if (env.nodeEnv !== 'production') corsOrigins.push('http://127.0.0.1:4200');
+  const corsOrigins = env.corsOrigin
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  if (env.nodeEnv !== "production") corsOrigins.push("http://127.0.0.1:4200");
   app.use(cors({ origin: corsOrigins, credentials: true }));
   app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 300 }));
   app.use(requestIdMiddleware);
@@ -177,14 +253,26 @@ export function buildApp(): Express {
   app.post(
     "/api/payments/webhook",
     express.raw({ type: "application/json" }),
-    paymentController.webhook
+    paymentController.webhook,
   );
 
   app.use(express.json({ limit: "1mb" }));
 
   // --- Routes ---
-  app.use("/api/auth", rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false }), authRoutes(authController, env.nodeEnv !== "production"));
-  app.use("/api/properties/saved-searches", savedSearchRoutes(savedSearchController));
+  app.use(
+    "/api/auth",
+    rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 30,
+      standardHeaders: true,
+      legacyHeaders: false,
+    }),
+    authRoutes(authController, env.nodeEnv !== "production"),
+  );
+  app.use(
+    "/api/properties/saved-searches",
+    savedSearchRoutes(savedSearchController),
+  );
   app.use("/api/properties", propertyRoutes(propertyController));
   app.use("/api/payments", paymentRoutes(paymentController));
   app.use("/api/admin", adminRoutes(adminController));
@@ -199,14 +287,28 @@ export function buildApp(): Express {
   app.use("/api", seoRoutes(seoController));
   app.use("/api", analyticsRoutes(analyticsController));
 
-  app.get(["/health", "/api/health"], (_req, res) => res.json({ status: "ok", service: "property-api" }));
+  app.get(["/health", "/api/health"], (_req, res) =>
+    res.json({ status: "ok", service: "property-api" }),
+  );
   app.get(["/readiness", "/api/readiness"], async (_req, res) => {
     try {
       await prisma.$queryRaw`SELECT 1`;
       await emailQueue.checkHealth();
-      res.json({ status: "ready", dependencies: { database: "ok", redis: "ok", emailQueue: "ok" } });
+      res.json({
+        status: "ready",
+        dependencies: { database: "ok", redis: "ok", emailQueue: "ok" },
+      });
     } catch {
-      res.status(503).json({ status: "not_ready", dependencies: { database: "unknown", redis: "unknown", emailQueue: "unknown" } });
+      res
+        .status(503)
+        .json({
+          status: "not_ready",
+          dependencies: {
+            database: "unknown",
+            redis: "unknown",
+            emailQueue: "unknown",
+          },
+        });
     }
   });
 

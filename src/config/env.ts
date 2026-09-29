@@ -8,14 +8,15 @@ function required(name: string): string {
 
 function positiveInteger(name: string, fallback: number): number {
   const value = Number(process.env[name] || fallback);
-  if (!Number.isInteger(value) || value <= 0) throw new Error(`${name} must be a positive integer`);
+  if (!Number.isInteger(value) || value <= 0)
+    throw new Error(`${name} must be a positive integer`);
   return value;
 }
 
 const databaseUrl = required("DATABASE_URL");
 if (!/^postgres(?:ql)?:\/\//i.test(databaseUrl)) {
   throw new Error(
-    "DATABASE_URL must be a PostgreSQL connection string starting with postgresql:// or postgres://; see .env.example"
+    "DATABASE_URL must be a PostgreSQL connection string starting with postgresql:// or postgres://; see .env.example",
   );
 }
 
@@ -40,6 +41,8 @@ export const env = {
 };
 
 if (env.nodeEnv === "production") {
-  if (env.jwtSecret.length < 32) throw new Error("JWT_SECRET must be at least 32 characters in production");
-  if (env.corsOrigin === "*") throw new Error("CORS_ORIGIN must be an explicit origin in production");
+  if (env.jwtSecret.length < 32)
+    throw new Error("JWT_SECRET must be at least 32 characters in production");
+  if (env.corsOrigin === "*")
+    throw new Error("CORS_ORIGIN must be an explicit origin in production");
 }

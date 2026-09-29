@@ -13,7 +13,10 @@ export class FavoriteController {
     if (!userId) throw new ForbiddenError("Buyer account required");
     const parsed = propertyIdSchema.safeParse(req.params.propertyId);
     if (!parsed.success) throw new BadRequestError("Invalid property id");
-    const favorite = await this.favoriteService.addFavorite(userId, parsed.data);
+    const favorite = await this.favoriteService.addFavorite(
+      userId,
+      parsed.data,
+    );
     res.json({ ...favorite, isFavorited: true });
   };
 

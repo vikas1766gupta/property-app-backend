@@ -1,4 +1,12 @@
-export type LeadStatus = "NEW" | "CONTACTED" | "INTERESTED" | "SITE_VISIT" | "NEGOTIATION" | "CLOSED" | "NOT_INTERESTED" | "INVALID";
+export type LeadStatus =
+  | "NEW"
+  | "CONTACTED"
+  | "INTERESTED"
+  | "SITE_VISIT"
+  | "NEGOTIATION"
+  | "CLOSED"
+  | "NOT_INTERESTED"
+  | "INVALID";
 
 export class LeadEntity {
   constructor(
@@ -18,7 +26,7 @@ export class LeadEntity {
     public closedAt: Date | null = null,
     public source: string | null = null,
     public lastUpdatedAt: Date = createdAt,
-    public projectId: string | null = null
+    public projectId: string | null = null,
   ) {}
 }
 
@@ -73,18 +81,37 @@ export interface LeadSummary {
 
 export interface LeadEventInput {
   leadId: string;
-  type: "lead_opened" | "status_changed" | "site_visit_scheduled" | "lead_closed";
+  type:
+    "lead_opened" | "status_changed" | "site_visit_scheduled" | "lead_closed";
   metadata?: Record<string, unknown>;
 }
 
 export interface ILeadRepository {
   create(input: CreateLeadInput): Promise<LeadEntity>;
   listByProperty(propertyId: string): Promise<LeadEntity[]>;
-  listByBusiness(businessId: string, filters: LeadFilters): Promise<{ items: LeadForBusiness[]; total: number }>;
-  findByIdForBusiness(businessId: string, leadId: string): Promise<LeadForBusiness | null>;
-  updateForBusiness(businessId: string, leadId: string, input: LeadUpdateInput): Promise<LeadForBusiness>;
-  addNoteForBusiness(businessId: string, leadId: string, note: string): Promise<LeadForBusiness>;
-  scheduleFollowUpForBusiness(businessId: string, leadId: string, nextFollowUpAt: Date): Promise<LeadForBusiness>;
+  listByBusiness(
+    businessId: string,
+    filters: LeadFilters,
+  ): Promise<{ items: LeadForBusiness[]; total: number }>;
+  findByIdForBusiness(
+    businessId: string,
+    leadId: string,
+  ): Promise<LeadForBusiness | null>;
+  updateForBusiness(
+    businessId: string,
+    leadId: string,
+    input: LeadUpdateInput,
+  ): Promise<LeadForBusiness>;
+  addNoteForBusiness(
+    businessId: string,
+    leadId: string,
+    note: string,
+  ): Promise<LeadForBusiness>;
+  scheduleFollowUpForBusiness(
+    businessId: string,
+    leadId: string,
+    nextFollowUpAt: Date,
+  ): Promise<LeadForBusiness>;
   summaryByBusiness(businessId: string): Promise<LeadSummary>;
   recordEvent(input: LeadEventInput): Promise<void>;
 }

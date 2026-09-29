@@ -1,7 +1,17 @@
 export type AnalyticsEventType =
-  | "PROPERTY_VIEW" | "SEARCH" | "FAVORITE" | "CONTACT_CLICK" | "CALL_CLICK" | "WHATSAPP_CLICK"
-  | "LEAD_CREATED" | "SITE_VISIT_REQUESTED" | "PROPERTY_CREATED" | "PROPERTY_FEATURED"
-  | "SUBSCRIPTION_PURCHASED" | "PAYMENT_COMPLETED" | "PROJECT_VIEW";
+  | "PROPERTY_VIEW"
+  | "SEARCH"
+  | "FAVORITE"
+  | "CONTACT_CLICK"
+  | "CALL_CLICK"
+  | "WHATSAPP_CLICK"
+  | "LEAD_CREATED"
+  | "SITE_VISIT_REQUESTED"
+  | "PROPERTY_CREATED"
+  | "PROPERTY_FEATURED"
+  | "SUBSCRIPTION_PURCHASED"
+  | "PAYMENT_COMPLETED"
+  | "PROJECT_VIEW";
 
 export interface AnalyticsEventInput {
   event: AnalyticsEventType;
@@ -15,8 +25,18 @@ export interface AnalyticsEventInput {
   occurredAt?: Date;
 }
 
-export interface AnalyticsRange { from: Date; to: Date; days: 7 | 30 | 90; }
-export interface TopAnalyticsItem { id: string; name: string; views: number; enquiries: number; favorites?: number; }
+export interface AnalyticsRange {
+  from: Date;
+  to: Date;
+  days: 7 | 30 | 90;
+}
+export interface TopAnalyticsItem {
+  id: string;
+  name: string;
+  views: number;
+  enquiries: number;
+  favorites?: number;
+}
 export interface BusinessAnalyticsSummary {
   range: AnalyticsRange;
   propertyViews: number;
@@ -47,7 +67,13 @@ export interface AdminAnalyticsSummary {
 
 export interface IAnalyticsRepository {
   record(input: AnalyticsEventInput): Promise<void>;
-  businessSummary(businessId: string, range: AnalyticsRange): Promise<BusinessAnalyticsSummary>;
-  builderSummary(businessId: string, range: AnalyticsRange): Promise<BuilderAnalyticsSummary>;
+  businessSummary(
+    businessId: string,
+    range: AnalyticsRange,
+  ): Promise<BusinessAnalyticsSummary>;
+  builderSummary(
+    businessId: string,
+    range: AnalyticsRange,
+  ): Promise<BuilderAnalyticsSummary>;
   adminSummary(range: AnalyticsRange): Promise<AdminAnalyticsSummary>;
 }

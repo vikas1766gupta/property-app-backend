@@ -4,8 +4,12 @@ import { PropertyEntity } from "@modules/property/property.entity";
 import { IFavoriteRepository } from "./favorite.repository.interface";
 import { FavoriteEntity } from "./favorite.entity";
 
-type PrismaPropertyWithImages = Prisma.PropertyGetPayload<{ include: { images: true } }>;
-type PrismaFavoriteWithProperty = Prisma.FavoriteGetPayload<{ include: { property: { include: { images: true } } } }>;
+type PrismaPropertyWithImages = Prisma.PropertyGetPayload<{
+  include: { images: true };
+}>;
+type PrismaFavoriteWithProperty = Prisma.FavoriteGetPayload<{
+  include: { property: { include: { images: true } } };
+}>;
 
 export class FavoriteRepositoryPrisma implements IFavoriteRepository {
   constructor(private readonly prisma: PrismaClient) {}
@@ -35,15 +39,29 @@ export class FavoriteRepositoryPrisma implements IFavoriteRepository {
       row.createdAt,
       row.latitude,
       row.longitude,
-      images.map((image) => ({ id: image.id, url: image.url, sortOrder: image.sortOrder, isCover: image.isCover }))
+      images.map((image) => ({
+        id: image.id,
+        url: image.url,
+        sortOrder: image.sortOrder,
+        isCover: image.isCover,
+      })),
     );
   }
 
   private toEntity(row: PrismaFavoriteWithProperty): FavoriteEntity {
-    return new FavoriteEntity(row.id, row.userId, row.propertyId, row.createdAt, this.toProperty(row.property));
+    return new FavoriteEntity(
+      row.id,
+      row.userId,
+      row.propertyId,
+      row.createdAt,
+      this.toProperty(row.property),
+    );
   }
 
-  async addFavorite(userId: string, propertyId: string): Promise<FavoriteEntity> {
+  async addFavorite(
+    userId: string,
+    propertyId: string,
+  ): Promise<FavoriteEntity> {
     const property = await this.prisma.property.findFirst({
       where: { id: propertyId, status: "PUBLISHED" },
       select: { id: true },

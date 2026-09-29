@@ -1,6 +1,13 @@
 export type ListingType = "RENT" | "SALE";
-export type ListingStatus = "DRAFT" | "PENDING_PAYMENT" | "PUBLISHED" | "FLAGGED" | "REMOVED";
-export type VerificationStatus = "PENDING" | "UNDER_REVIEW" | "VERIFIED" | "REJECTED" | "SUSPENDED" | "EXPIRED";
+export type ListingStatus =
+  "DRAFT" | "PENDING_PAYMENT" | "PUBLISHED" | "FLAGGED" | "REMOVED";
+export type VerificationStatus =
+  | "PENDING"
+  | "UNDER_REVIEW"
+  | "VERIFIED"
+  | "REJECTED"
+  | "SUSPENDED"
+  | "EXPIRED";
 
 export interface PropertyImageReference {
   id: string;
@@ -56,7 +63,7 @@ export class PropertyEntity {
     public verificationStatus: VerificationStatus = "PENDING",
     public duplicateFlag = false,
     public duplicateReason: string | null = null,
-    public promoted = false
+    public promoted = false,
   ) {}
 }
 
@@ -94,7 +101,16 @@ export interface CreatePropertyInput {
 }
 
 export type UpdatePropertyInput = Partial<
-  Omit<CreatePropertyInput, "businessId" | "latitude" | "longitude" | "bedrooms" | "bathrooms" | "areaSqft" | "furnishingStatus">
+  Omit<
+    CreatePropertyInput,
+    | "businessId"
+    | "latitude"
+    | "longitude"
+    | "bedrooms"
+    | "bathrooms"
+    | "areaSqft"
+    | "furnishingStatus"
+  >
 > & {
   latitude?: number | null;
   longitude?: number | null;

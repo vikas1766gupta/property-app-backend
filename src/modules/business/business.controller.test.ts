@@ -13,10 +13,19 @@ describe("BusinessController", () => {
     const controller = new BusinessController(service as any);
     const res = response();
 
-    await expect(controller.updateMine(
-      { auth: { userId: "user-1", role: "BUSINESS", businessId: "business-1" }, body: { businessId: "business-2", displayName: "Updated" } } as any,
-      res,
-    )).rejects.toMatchObject({ statusCode: 400 });
+    await expect(
+      controller.updateMine(
+        {
+          auth: {
+            userId: "user-1",
+            role: "BUSINESS",
+            businessId: "business-1",
+          },
+          body: { businessId: "business-2", displayName: "Updated" },
+        } as any,
+        res,
+      ),
+    ).rejects.toMatchObject({ statusCode: 400 });
 
     expect(service.updateOwnProfile).not.toHaveBeenCalled();
   });
@@ -26,10 +35,19 @@ describe("BusinessController", () => {
     const controller = new BusinessController(service as any);
     const res = response();
 
-    await expect(controller.updateMine(
-      { auth: { userId: "user-1", role: "BUSINESS", businessId: "business-1" }, body: { accountType: "AGENT", website: "not-a-url" } } as any,
-      res,
-    )).rejects.toMatchObject({ statusCode: 400 });
+    await expect(
+      controller.updateMine(
+        {
+          auth: {
+            userId: "user-1",
+            role: "BUSINESS",
+            businessId: "business-1",
+          },
+          body: { accountType: "AGENT", website: "not-a-url" },
+        } as any,
+        res,
+      ),
+    ).rejects.toMatchObject({ statusCode: 400 });
     expect(service.updateOwnProfile).not.toHaveBeenCalled();
   });
 });

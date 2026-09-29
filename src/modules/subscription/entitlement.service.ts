@@ -12,22 +12,36 @@ export class EntitlementService {
     private readonly planService: PlanService,
     private readonly subscriptionRepo: SubscriptionRepositoryPrisma,
     private readonly propertyRepo: IPropertyRepository,
-    private readonly pricingService: PricingService
+    private readonly pricingService: PricingService,
   ) {}
 
-  async resolvePlan(businessId: string): Promise<{ plan: Plan; subscription: Subscription | null }> {
-    const subscription = await this.subscriptionRepo.findCurrentByBusiness(businessId);
+  async resolvePlan(
+    businessId: string,
+  ): Promise<{ plan: Plan; subscription: Subscription | null }> {
+    const subscription =
+      await this.subscriptionRepo.findCurrentByBusiness(businessId);
     const now = new Date();
-    if (subscription && ACTIVE_STATUSES.has(subscription.status) && subscription.currentPeriodEnd > now && subscription.plan.isActive) {
+    if (
+      subscription &&
+      ACTIVE_STATUSES.has(subscription.status) &&
+      subscription.currentPeriodEnd > now &&
+      subscription.plan.isActive
+    ) {
       return { plan: subscription.plan, subscription };
     }
     if (env.nodeEnv !== "production" && env.defaultBusinessPlan) {
-      const defaultPlan = await this.planService.getByName(env.defaultBusinessPlan);
-      if (defaultPlan?.isActive) return { plan: defaultPlan, subscription: null };
+      const defaultPlan = await this.planService.getByName(
+        env.defaultBusinessPlan,
+      );
+      if (defaultPlan?.isActive)
+        return { plan: defaultPlan, subscription: null };
     }
     const freePlan = await this.planService.getFreePlan();
     const pricing = await this.pricingService.getConfig();
-    return { plan: { ...freePlan, maxActiveListings: pricing.freeListingLimit }, subscription: null };
+    return {
+      plan: { ...freePlan, maxActiveListings: pricing.freeListingLimit },
+      subscription: null,
+    };
   }
 
   async getEntitlements(businessId: string): Promise<Entitlements> {
@@ -65,7 +79,17 @@ export class EntitlementService {
     return this.hasFeature(businessId, "analytics");
   }
 
-  async hasFeature(businessId: string, feature: keyof Pick<Plan, "leadManagement" | "analytics" | "priorityVisibility" | "profileVisibility" | "projectListingAccess">): Promise<boolean> {
+  async hasFeature(
+    businessId: string,
+    feature: keyof Pick<
+      Plan,
+      | "leadManagement"
+      | "analytics"
+      | "priorityVisibility"
+      | "profileVisibility"
+      | "projectListingAccess"
+    >,
+  ): Promise<boolean> {
     const entitlements = await this.getEntitlements(businessId);
     return entitlements[feature];
   }

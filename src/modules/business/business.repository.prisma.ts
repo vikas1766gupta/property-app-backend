@@ -39,26 +39,41 @@ export class BusinessRepositoryPrisma implements IBusinessRepository {
       updatedAt: row.updatedAt,
       stats: {
         activePropertyCount: activeProperties.length,
-        saleListingsCount: activeProperties.filter((property) => property.listingType === "SALE").length,
-        rentalListingsCount: activeProperties.filter((property) => property.listingType === "RENT").length,
+        saleListingsCount: activeProperties.filter(
+          (property) => property.listingType === "SALE",
+        ).length,
+        rentalListingsCount: activeProperties.filter(
+          (property) => property.listingType === "RENT",
+        ).length,
         commercialListingsCount: 0,
-        projectsCount: row.accountType === "BUILDER" ? activeProperties.length : 0,
-        activeProjectsCount: row.accountType === "BUILDER" ? activeProperties.length : 0,
+        projectsCount:
+          row.accountType === "BUILDER" ? activeProperties.length : 0,
+        activeProjectsCount:
+          row.accountType === "BUILDER" ? activeProperties.length : 0,
       },
     };
   }
 
   async findById(id: string): Promise<BusinessProfile | null> {
-    const row = await this.prisma.business.findUnique({ where: { id }, include: profileInclude });
+    const row = await this.prisma.business.findUnique({
+      where: { id },
+      include: profileInclude,
+    });
     return row ? this.toProfile(row) : null;
   }
 
   async findAll(): Promise<BusinessProfile[]> {
-    const rows = await this.prisma.business.findMany({ include: profileInclude, orderBy: { createdAt: "desc" } });
+    const rows = await this.prisma.business.findMany({
+      include: profileInclude,
+      orderBy: { createdAt: "desc" },
+    });
     return rows.map((row) => this.toProfile(row));
   }
 
-  async update(id: string, input: BusinessProfileUpdate): Promise<BusinessProfile> {
+  async update(
+    id: string,
+    input: BusinessProfileUpdate,
+  ): Promise<BusinessProfile> {
     const { phone, ...profileData } = input;
     const row = await this.prisma.business.update({
       where: { id },
@@ -71,7 +86,9 @@ export class BusinessRepositoryPrisma implements IBusinessRepository {
     return this.toProfile(row);
   }
 
-  async listPublishedProperties(id: string): Promise<BusinessPropertySummary[]> {
+  async listPublishedProperties(
+    id: string,
+  ): Promise<BusinessPropertySummary[]> {
     const rows = await this.prisma.property.findMany({
       where: { businessId: id, status: "PUBLISHED" },
       select: {
@@ -86,6 +103,10 @@ export class BusinessRepositoryPrisma implements IBusinessRepository {
       },
       orderBy: { publishedAt: "desc" },
     });
-    return rows.map((row) => ({ ...row, price: Number(row.price), images: row.images.map((image) => image.url) }));
+    return rows.map((row) => ({
+      ...row,
+      price: Number(row.price),
+      images: row.images.map((image) => image.url),
+    }));
   }
 }

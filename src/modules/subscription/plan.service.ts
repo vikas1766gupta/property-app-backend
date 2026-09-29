@@ -5,9 +5,17 @@ import { BadRequestError, NotFoundError } from "../../common/errors/AppError";
 export class PlanService {
   constructor(private readonly prisma: PrismaClient) {}
 
-  async list(accountType?: BusinessAccountType, includeInactive = false): Promise<Plan[]> {
+  async list(
+    accountType?: BusinessAccountType,
+    includeInactive = false,
+  ): Promise<Plan[]> {
     const plans = await this.prisma.plan.findMany({
-      where: { ...(includeInactive ? {} : { isActive: true }), ...(accountType ? { OR: [{ accountType }, { accountType: null }] } : {}) },
+      where: {
+        ...(includeInactive ? {} : { isActive: true }),
+        ...(accountType
+          ? { OR: [{ accountType }, { accountType: null }] }
+          : {}),
+      },
       orderBy: { price: "asc" },
     });
     return plans.map((plan) => this.toPlan(plan));
@@ -46,13 +54,22 @@ export class PlanService {
   }
 
   private validate(input: Partial<Plan>): void {
-    if (input.price !== undefined && input.price < 0) throw new BadRequestError("Plan price cannot be negative");
-    for (const key of ["maxActiveListings", "featuredCredits", "maxTeamMembers"] as const) {
-      if (input[key] !== undefined && (!Number.isInteger(input[key]) || input[key] < 0)) {
+    if (input.price !== undefined && input.price < 0)
+      throw new BadRequestError("Plan price cannot be negative");
+    for (const key of [
+      "maxActiveListings",
+      "featuredCredits",
+      "maxTeamMembers",
+    ] as const) {
+      if (
+        input[key] !== undefined &&
+        (!Number.isInteger(input[key]) || input[key] < 0)
+      ) {
         throw new BadRequestError(`${key} must be a non-negative integer`);
       }
     }
-    if (input.currency !== undefined && !/^[A-Z]{3}$/.test(input.currency)) throw new BadRequestError("Invalid currency");
+    if (input.currency !== undefined && !/^[A-Z]{3}$/.test(input.currency))
+      throw new BadRequestError("Invalid currency");
   }
 
   toPlan(plan: any): Plan {

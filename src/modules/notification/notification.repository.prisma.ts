@@ -1,5 +1,11 @@
-import { PrismaClient, Notification as PrismaNotification } from "@prisma/client";
-import { INotificationRepository, NotificationEntity } from "./notification.entity";
+import {
+  PrismaClient,
+  Notification as PrismaNotification,
+} from "@prisma/client";
+import {
+  INotificationRepository,
+  NotificationEntity,
+} from "./notification.entity";
 
 export class NotificationRepositoryPrisma implements INotificationRepository {
   constructor(private readonly prisma: PrismaClient) {}
@@ -17,7 +23,9 @@ export class NotificationRepositoryPrisma implements INotificationRepository {
     };
   }
 
-  async create(data: Omit<NotificationEntity, "id" | "readAt" | "createdAt">): Promise<NotificationEntity> {
+  async create(
+    data: Omit<NotificationEntity, "id" | "readAt" | "createdAt">,
+  ): Promise<NotificationEntity> {
     const row = await this.prisma.notification.create({ data });
     return this.toEntity(row);
   }

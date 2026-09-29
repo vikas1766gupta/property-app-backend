@@ -51,9 +51,14 @@ describe("BusinessService", () => {
     const repo = repository();
     const service = new BusinessService(repo);
 
-    await service.updateOwnProfile("business-1", { accountType: "BUILDER", website: null });
+    await service.updateOwnProfile("business-1", {
+      accountType: "BUILDER",
+      website: null,
+    });
 
-    expect(repo.update).toHaveBeenCalledWith("business-1", { accountType: "BUILDER", website: null });
+    expect(repo.update).toHaveBeenCalledWith("business-1", {
+      accountType: "BUILDER",
+      website: null,
+    });
   });
-
 });

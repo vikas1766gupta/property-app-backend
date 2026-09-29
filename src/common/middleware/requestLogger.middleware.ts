@@ -2,7 +2,11 @@ import { Request, Response, NextFunction } from "express";
 import { logger } from "@common/logger/logger";
 
 /** Logs method, route, status code and response time for every request. */
-export function requestLoggerMiddleware(req: Request, res: Response, next: NextFunction): void {
+export function requestLoggerMiddleware(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): void {
   const start = process.hrtime.bigint();
 
   res.on("finish", () => {

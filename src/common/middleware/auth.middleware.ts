@@ -30,14 +30,20 @@ declare global {
 }
 
 /** Verifies the JWT and attaches the decoded payload to req.auth. Throws 401 if missing/invalid. */
-export function requireAuth(req: Request, _res: Response, next: NextFunction): void {
+export function requireAuth(
+  req: Request,
+  _res: Response,
+  next: NextFunction,
+): void {
   const header = req.headers.authorization;
   if (!header?.startsWith("Bearer ")) {
     throw new UnauthorizedError("Missing bearer token");
   }
   try {
     const token = header.slice("Bearer ".length);
-    req.auth = authPayloadSchema.parse(jwt.verify(token, jwtSecret(), { algorithms: ["HS256"] }));
+    req.auth = authPayloadSchema.parse(
+      jwt.verify(token, jwtSecret(), { algorithms: ["HS256"] }),
+    );
     next();
   } catch {
     throw new UnauthorizedError("Invalid or expired token");
@@ -55,11 +61,17 @@ export function requireRole(...roles: AuthPayload["role"][]) {
 }
 
 /** Populates req.auth if a valid token is present, but never throws — for public/optional-auth routes. */
-export function optionalAuth(req: Request, _res: Response, next: NextFunction): void {
+export function optionalAuth(
+  req: Request,
+  _res: Response,
+  next: NextFunction,
+): void {
   const header = req.headers.authorization;
   if (header?.startsWith("Bearer ")) {
     try {
-      req.auth = authPayloadSchema.parse(jwt.verify(header.slice(7), jwtSecret(), { algorithms: ["HS256"] }));
+      req.auth = authPayloadSchema.parse(
+        jwt.verify(header.slice(7), jwtSecret(), { algorithms: ["HS256"] }),
+      );
     } catch {
       // ignore invalid token on optional routes
     }

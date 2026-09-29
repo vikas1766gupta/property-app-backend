@@ -1,4 +1,7 @@
-import { PrismaClient, PricingConfig as PrismaPricingConfig } from "@prisma/client";
+import {
+  PrismaClient,
+  PricingConfig as PrismaPricingConfig,
+} from "@prisma/client";
 import { IPricingRepository } from "./pricing.repository.interface";
 import { PricingConfig } from "./pricing.entity";
 
@@ -21,7 +24,10 @@ export class PricingRepositoryPrisma implements IPricingRepository {
   async save(config: PricingConfig): Promise<PricingConfig> {
     const existing = await this.prisma.pricingConfig.findFirst();
     const row = existing
-      ? await this.prisma.pricingConfig.update({ where: { id: existing.id }, data: config })
+      ? await this.prisma.pricingConfig.update({
+          where: { id: existing.id },
+          data: config,
+        })
       : await this.prisma.pricingConfig.create({ data: config });
     return this.toEntity(row);
   }

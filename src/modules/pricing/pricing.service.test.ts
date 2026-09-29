@@ -19,14 +19,20 @@ describe("PricingService", () => {
   });
 
   it("normalizes and saves a valid admin config", async () => {
-    const savedConfig: PricingConfig = { freeListingLimit: 3, pricePerListing: 725.5, currency: "USD" };
+    const savedConfig: PricingConfig = {
+      freeListingLimit: 3,
+      pricePerListing: 725.5,
+      currency: "USD",
+    };
     const repository: IPricingRepository = {
       findCurrent: vi.fn(),
       save: vi.fn().mockResolvedValue(savedConfig),
     };
     const service = new PricingService(repository);
 
-    await expect(service.updateConfig({ ...savedConfig, currency: "usd" })).resolves.toEqual(savedConfig);
+    await expect(
+      service.updateConfig({ ...savedConfig, currency: "usd" }),
+    ).resolves.toEqual(savedConfig);
     expect(repository.save).toHaveBeenCalledWith(savedConfig);
   });
 
@@ -36,10 +42,15 @@ describe("PricingService", () => {
     [{ freeListingLimit: 5, pricePerListing: 499.999, currency: "INR" }],
     [{ freeListingLimit: 5, pricePerListing: 499, currency: "ZZZ" }],
   ])("rejects invalid pricing values: %o", async (input) => {
-    const repository: IPricingRepository = { findCurrent: vi.fn(), save: vi.fn() };
+    const repository: IPricingRepository = {
+      findCurrent: vi.fn(),
+      save: vi.fn(),
+    };
     const service = new PricingService(repository);
 
-    await expect(service.updateConfig(input)).rejects.toMatchObject({ statusCode: 400 });
+    await expect(service.updateConfig(input)).rejects.toMatchObject({
+      statusCode: 400,
+    });
     expect(repository.save).not.toHaveBeenCalled();
   });
 });

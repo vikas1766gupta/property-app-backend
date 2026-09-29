@@ -1,18 +1,30 @@
 import { PrismaClient } from "@prisma/client";
 import { IAdminRepository } from "./admin.repository.interface";
-import { AdminBusinessRecord, AdminBusinessStatus, AdminBusinessUpdateRecord, AdminListingRecord, AdminListingStatus, AdminListingUpdateRecord } from "./admin.entity";
+import {
+  AdminBusinessRecord,
+  AdminBusinessStatus,
+  AdminBusinessUpdateRecord,
+  AdminListingRecord,
+  AdminListingStatus,
+  AdminListingUpdateRecord,
+} from "./admin.entity";
 import { ProjectEntity } from "@modules/project/project.entity";
 import { ProjectRepositoryPrisma } from "@modules/project/project.repository.prisma";
 
 export class AdminRepositoryPrisma implements IAdminRepository {
   private readonly projectRepo: ProjectRepositoryPrisma;
-  constructor(private readonly prisma: PrismaClient) { this.projectRepo = new ProjectRepositoryPrisma(prisma); }
+  constructor(private readonly prisma: PrismaClient) {
+    this.projectRepo = new ProjectRepositoryPrisma(prisma);
+  }
 
   async listBusinesses(): Promise<AdminBusinessRecord[]> {
     return this.prisma.business.findMany({ include: { user: true } });
   }
 
-  async verifyBusiness(id: string, status: AdminBusinessStatus): Promise<AdminBusinessUpdateRecord> {
+  async verifyBusiness(
+    id: string,
+    status: AdminBusinessStatus,
+  ): Promise<AdminBusinessUpdateRecord> {
     return this.prisma.business.update({
       where: { id },
       data: { verificationStatus: status },
@@ -20,10 +32,15 @@ export class AdminRepositoryPrisma implements IAdminRepository {
   }
 
   async listAllListings(): Promise<AdminListingRecord[]> {
-    return this.prisma.property.findMany({ include: { business: true, images: true } });
+    return this.prisma.property.findMany({
+      include: { business: true, images: true },
+    });
   }
 
-  async updateListingStatus(id: string, status: AdminListingStatus): Promise<AdminListingUpdateRecord> {
+  async updateListingStatus(
+    id: string,
+    status: AdminListingStatus,
+  ): Promise<AdminListingUpdateRecord> {
     return this.prisma.property.update({
       where: { id },
       data: { status },
@@ -43,7 +60,17 @@ export class AdminRepositoryPrisma implements IAdminRepository {
     return this.prisma.subscription.groupBy({ by: ["status"], _count: true });
   }
 
-  listProjects(): Promise<ProjectEntity[]> { return this.projectRepo.listAllForAdmin(); }
+  listProjects(): Promise<ProjectEntity[]> {
+    return this.projectRepo.listAllForAdmin();
+  }
 
-  updateProject(id: string, input: { status?: ProjectEntity["status"]; verificationStatus?: ProjectEntity["verificationStatus"] }): Promise<ProjectEntity> { return this.projectRepo.updateModeration(id, input); }
+  updateProject(
+    id: string,
+    input: {
+      status?: ProjectEntity["status"];
+      verificationStatus?: ProjectEntity["verificationStatus"];
+    },
+  ): Promise<ProjectEntity> {
+    return this.projectRepo.updateModeration(id, input);
+  }
 }
